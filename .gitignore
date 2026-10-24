@@ -1,0 +1,14 @@
+# Node.js backend
+api/node_modules/
+api/.env
+
+# Flutter
+TaskManager/.dart_tool/
+TaskManager/build/
+TaskManager/.flutter-plugins
+TaskManager/.flutter-plugins-dependencies
+TaskManager/.idea/
+TaskManager/.vscode/
+
+# Generated Android files
+TaskManager/android/.gradle/
