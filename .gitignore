@@ -12,3 +12,7 @@ TaskManager/.vscode/
 
 # Generated Android files
 TaskManager/android/.gradle/
+
+.idea/
+*.iml
+.DS_Store
