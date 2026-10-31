@@ -1,7 +1,7 @@
 
 import 'package:flutter/material.dart';
 
-import 'screens/auth/register_screen.dart';
+import 'screens/auth/login_screen.dart';
 import 'screens/task_list_screen.dart';
 
 void main() {
@@ -22,7 +22,7 @@ class TaskManagerApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const RegisterScreen(),
+      home: const LoginScreen(),
       routes: {
         '/tasks': (context) => const TaskListScreen(),
       },
