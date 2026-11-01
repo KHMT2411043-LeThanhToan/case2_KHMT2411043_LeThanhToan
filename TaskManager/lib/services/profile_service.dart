@@ -71,4 +71,34 @@ class ProfileService {
       throw Exception('Máy chủ trả về dữ liệu không hợp lệ.');
     }
   }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final token = await _getToken();
+
+    final response = await http.put(
+      Uri.parse('$_baseUrl/change-password'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      }),
+    );
+
+    final data = _decodeResponse(response.body);
+
+    if (response.statusCode == 200) {
+      return;
+    }
+
+    throw Exception(
+      data['message'] ?? 'Không thể đổi mật khẩu.',
+    );
+  }
+
 }

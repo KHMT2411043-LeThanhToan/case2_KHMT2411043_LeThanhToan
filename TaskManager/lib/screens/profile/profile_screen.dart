@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/profile_service.dart';
+import 'change_password_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -174,6 +175,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
             label: Text(
               _isSaving ? 'Đang lưu...' : 'Lưu thay đổi',
             ),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ChangePasswordScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.lock_reset),
+            label: const Text('Đổi mật khẩu'),
           ),
         ],
       ),
