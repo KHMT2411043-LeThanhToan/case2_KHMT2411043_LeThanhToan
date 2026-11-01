@@ -9,10 +9,11 @@ const PORT = process.env.PORT || 5000;
 // Model cong viec
 const Task = require('./models/Task');
 const authRoutes = require('./routes/auth');
-
+const profileRoutes = require('./routes/profile');
 // Cho phep server doc du lieu JSON
 app.use(express.json());
 app.use('/api/auth', authRoutes);
+app.use('/api/profile', profileRoutes);
 
 // API kiem tra server
 app.get('/', (req, res) => {

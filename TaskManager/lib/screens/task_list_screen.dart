@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../models/task.dart';
 import '../services/task_service.dart';
 import 'auth/login_screen.dart';
+import '../services/auth_service.dart';
+import 'profile/profile_screen.dart';
 
 class TaskListScreen extends StatefulWidget {
   const TaskListScreen({super.key});
@@ -30,12 +32,15 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
     await _tasksFuture;
   }
+
   Future<void> _confirmLogout() async {
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Đăng xuất'),
-        content: const Text('Bạn có chắc chắn muốn đăng xuất không?'),
+        content: const Text(
+          'Bạn có chắc chắn muốn đăng xuất không?',
+        ),
         actions: [
           TextButton(
             onPressed: () {
@@ -55,6 +60,11 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
     if (!mounted || shouldLogout != true) return;
 
+// Xóa token đã lưu trên thiết bị.
+    await AuthService().logout();
+
+    if (!mounted) return;
+
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
@@ -63,6 +73,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
           (route) => false,
     );
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -70,6 +81,18 @@ class _TaskListScreenState extends State<TaskListScreen> {
         title: const Text('Task Manager'),
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.person),
+            tooltip: 'Thông tin cá nhân',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ProfileScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Đăng xuất',

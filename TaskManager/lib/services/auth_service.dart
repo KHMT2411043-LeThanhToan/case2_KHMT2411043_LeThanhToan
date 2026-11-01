@@ -2,7 +2,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
-
+import 'package:shared_preferences/shared_preferences.dart';
 class AuthService {
   static const String _baseUrl = 'http://10.0.2.2:5000/api/auth';
 
@@ -34,6 +34,7 @@ class AuthService {
     }
 
     if (response.statusCode == 201) {
+      await _saveToken(data);
       return data;
     }
 
@@ -69,6 +70,7 @@ Future<Map<String, dynamic>> login({
   }
 
   if (response.statusCode == 200) {
+    await _saveToken(data);
     return data;
   }
 
@@ -76,4 +78,22 @@ Future<Map<String, dynamic>> login({
     data['message'] ?? 'Đăng nhập thất bại. Vui lòng thử lại.',
   );
 }
+Future<void> _saveToken(Map<String, dynamic> data) async {
+    final token = data['token'];
+
+    if (token is String && token.isNotEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_token', token);
+    }
+  }
+
+  Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('auth_token');
+  }
+
+  Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('auth_token');
+  }
 }
