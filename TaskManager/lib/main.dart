@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 import 'screens/auth/login_screen.dart';
-import 'screens/task_list_screen.dart';
+import 'screens/tasks/task_list_screen.dart';
 
 void main() {
   runApp(const TaskManagerApp());

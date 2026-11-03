@@ -1,0 +1,324 @@
+
+import 'package:flutter/material.dart';
+
+import '../../models/task.dart';
+import '../../services/task_service.dart';
+import '../../services/auth_service.dart';
+import '../auth/login_screen.dart';
+import '../profile/profile_screen.dart';
+import 'task_detail_screen.dart';
+
+class TaskListScreen extends StatefulWidget {
+  const TaskListScreen({super.key});
+
+  @override
+  State<TaskListScreen> createState() => _TaskListScreenState();
+}
+
+class _TaskListScreenState extends State<TaskListScreen> {
+  final TaskService _taskService = TaskService();
+
+  late Future<List<Task>> _tasksFuture;
+
+  String? _selectedType;
+
+  String _typeLabel(String? type) {
+    switch (type) {
+      case 'created':
+        return 'Đã tạo';
+      case 'assigned':
+        return 'Được giao';
+      case 'accepted':
+        return 'Đã nhận';
+      case 'shared':
+        return 'Được chia sẻ';
+      default:
+        return 'Tất cả';
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTasks();
+  }
+
+  void _loadTasks() {
+    _tasksFuture = _taskService.fetchTasks(
+      type: _selectedType,
+    );
+  }
+
+  void _changeType(String? type) {
+    setState(() {
+      _selectedType = type;
+      _loadTasks();
+    });
+  }
+
+  Future<void> _reloadTasks() async {
+    setState(() {
+      _loadTasks();
+    });
+
+    await _tasksFuture;
+  }
+
+  Future<void> _confirmLogout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Đăng xuất'),
+        content: const Text(
+          'Bạn có chắc chắn muốn đăng xuất không?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context, false);
+            },
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context, true);
+            },
+            child: const Text('Đăng xuất'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted || shouldLogout != true) return;
+
+    await AuthService().logout();
+
+    if (!mounted) return;
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const LoginScreen(),
+      ),
+          (route) => false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Task Manager'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.person),
+            tooltip: 'Thông tin cá nhân',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ProfileScreen(),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Đăng xuất',
+            onPressed: _confirmLogout,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: DropdownButtonFormField<String?>(
+              initialValue: _selectedType,
+              decoration: const InputDecoration(
+                labelText: 'Lọc công việc',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.filter_list),
+              ),
+              items: const [
+                DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('Tất cả'),
+                ),
+                DropdownMenuItem<String?>(
+                  value: 'created',
+                  child: Text('Đã tạo'),
+                ),
+                DropdownMenuItem<String?>(
+                  value: 'assigned',
+                  child: Text('Được giao'),
+                ),
+                DropdownMenuItem<String?>(
+                  value: 'accepted',
+                  child: Text('Đã nhận'),
+                ),
+                DropdownMenuItem<String?>(
+                  value: 'shared',
+                  child: Text('Được chia sẻ'),
+                ),
+              ],
+              onChanged: _changeType,
+            ),
+          ),
+          Expanded(
+            child: FutureBuilder<List<Task>>(
+              future: _tasksFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState ==
+                    ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            size: 48,
+                            color: Colors.red,
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Không thể tải công việc.',
+                            style: TextStyle(fontSize: 18),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${snapshot.error}',
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                _loadTasks();
+                              });
+                            },
+                            child: const Text('Thử lại'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                final tasks = snapshot.data ?? [];
+
+                if (tasks.isEmpty) {
+                  return RefreshIndicator(
+                    onRefresh: _reloadTasks,
+                    child: ListView(
+                      physics:
+                      const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        const SizedBox(height: 100),
+                        const Icon(
+                          Icons.inbox_outlined,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(height: 16),
+                        const Center(
+                          child: Text(
+                            'Chưa có công việc nào.',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Center(
+                          child: Text(
+                            'Danh mục: ${_typeLabel(_selectedType)}',
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Center(
+                          child: Text('Kéo xuống để tải lại.'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return RefreshIndicator(
+                  onRefresh: _reloadTasks,
+                  child: ListView.builder(
+                    physics:
+                    const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(16),
+                    itemCount: tasks.length,
+                    itemBuilder: (context, index) {
+                      final task = tasks[index];
+
+                      return Card(
+                        margin:
+                        const EdgeInsets.only(bottom: 12),
+
+                        child: ListTile(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => TaskDetailScreen(task: task),
+                              ),
+                            );
+                          },
+                          // Giữ nguyên các thuộc tính leading, title,
+                          // subtitle và trailing hiện có ở bên dưới.
+
+                          leading: Icon(
+                            task.completed
+                                ? Icons.check_circle
+                                : Icons.radio_button_unchecked,
+                            color: task.completed
+                                ? Colors.green
+                                : Colors.blueGrey,
+                            size: 30,
+                          ),
+                          title: Text(
+                            task.title,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              decoration: task.completed
+                                  ? TextDecoration.lineThrough
+                                  : TextDecoration.none,
+                            ),
+                          ),
+                          subtitle: task.description.isEmpty
+                              ? const Text('Không có mô tả')
+                              : Text(task.description),
+                          trailing: Text(
+                            task.completed
+                                ? 'Hoàn thành'
+                                : 'Chưa xong',
+                            style: TextStyle(
+                              color: task.completed
+                                  ? Colors.green
+                                  : Colors.orange,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

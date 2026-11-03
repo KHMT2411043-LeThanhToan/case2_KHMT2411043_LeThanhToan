@@ -4,20 +4,42 @@ class Task {
   final String title;
   final String description;
   final bool completed;
+  final String createdBy;
+  final List<String> assignedTo;
+  final List<String> acceptedBy;
+  final List<String> sharedWith;
 
   Task({
     required this.id,
     required this.title,
     required this.description,
     required this.completed,
+    this.createdBy = '',
+    this.assignedTo = const [],
+    this.acceptedBy = const [],
+    this.sharedWith = const [],
   });
 
   factory Task.fromJson(Map<String, dynamic> json) {
+    List<String> parseIds(dynamic value) {
+      if (value is! List) return [];
+      return value.map((item) {
+        if (item is Map<String, dynamic>) {
+          return item['_id']?.toString() ?? '';
+        }
+        return item.toString();
+      }).where((id) => id.isNotEmpty).toList();
+    }
+
     return Task(
       id: json['_id']?.toString() ?? '',
-      title: json['title'] ?? '',
-      description: json['description'] ?? '',
-      completed: json['completed'] ?? false,
+      title: json['title']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      completed: json['completed'] == true,
+      createdBy: json['createdBy']?.toString() ?? '',
+      assignedTo: parseIds(json['assignedTo']),
+      acceptedBy: parseIds(json['acceptedBy']),
+      sharedWith: parseIds(json['sharedWith']),
     );
   }
 }

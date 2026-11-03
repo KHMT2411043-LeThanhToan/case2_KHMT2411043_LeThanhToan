@@ -44,41 +44,41 @@ class AuthService {
   }
 
 
-Future<Map<String, dynamic>> login({
-  required String email,
-  required String password,
-}) async {
-  final uri = Uri.parse('$_baseUrl/login');
+  Future<Map<String, dynamic>> login({
+    required String email,
+    required String password,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/login');
 
-  final response = await http.post(
-    uri,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: jsonEncode({
-      'email': email.trim(),
-      'password': password,
-    }),
-  );
+    final response = await http.post(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'email': email.trim(),
+        'password': password,
+      }),
+    );
 
-  final Map<String, dynamic> data;
+    final Map<String, dynamic> data;
 
-  try {
-    data = jsonDecode(response.body) as Map<String, dynamic>;
-  } catch (_) {
-    throw Exception('Máy chủ trả về dữ liệu không hợp lệ.');
+    try {
+      data = jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (_) {
+      throw Exception('Máy chủ trả về dữ liệu không hợp lệ.');
+    }
+
+    if (response.statusCode == 200) {
+      await _saveToken(data);
+      return data;
+    }
+
+    throw Exception(
+      data['message'] ?? 'Đăng nhập thất bại. Vui lòng thử lại.',
+    );
   }
-
-  if (response.statusCode == 200) {
-    await _saveToken(data);
-    return data;
-  }
-
-  throw Exception(
-    data['message'] ?? 'Đăng nhập thất bại. Vui lòng thử lại.',
-  );
-}
-Future<void> _saveToken(Map<String, dynamic> data) async {
+  Future<void> _saveToken(Map<String, dynamic> data) async {
     final token = data['token'];
 
     if (token is String && token.isNotEmpty) {
