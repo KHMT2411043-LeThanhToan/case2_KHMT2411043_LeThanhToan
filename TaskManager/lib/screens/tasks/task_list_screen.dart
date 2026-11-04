@@ -7,12 +7,14 @@ import '../../services/auth_service.dart';
 import '../auth/login_screen.dart';
 import '../profile/profile_screen.dart';
 import 'task_detail_screen.dart';
+import 'task_create_screen.dart';
 
 class TaskListScreen extends StatefulWidget {
   const TaskListScreen({super.key});
 
   @override
-  State<TaskListScreen> createState() => _TaskListScreenState();
+  State<TaskListScreen> createState() =>
+      _TaskListScreenState();
 }
 
 class _TaskListScreenState extends State<TaskListScreen> {
@@ -43,12 +45,14 @@ class _TaskListScreenState extends State<TaskListScreen> {
     _loadTasks();
   }
 
+  // Tải danh sách công việc
   void _loadTasks() {
     _tasksFuture = _taskService.fetchTasks(
       type: _selectedType,
     );
   }
 
+  // Thay đổi bộ lọc
   void _changeType(String? type) {
     setState(() {
       _selectedType = type;
@@ -56,6 +60,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
     });
   }
 
+  // Tải lại danh sách công việc
   Future<void> _reloadTasks() async {
     setState(() {
       _loadTasks();
@@ -64,6 +69,23 @@ class _TaskListScreenState extends State<TaskListScreen> {
     await _tasksFuture;
   }
 
+  // Mở màn hình tạo công việc
+  Future<void> _openCreateTaskScreen() async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const TaskCreateScreen(),
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (result == true) {
+      await _reloadTasks();
+    }
+  }
+
+  // Xác nhận đăng xuất
   Future<void> _confirmLogout() async {
     final shouldLogout = await showDialog<bool>(
       context: context,
@@ -104,6 +126,21 @@ class _TaskListScreenState extends State<TaskListScreen> {
     );
   }
 
+  // Mở chi tiết và tải lại danh sách khi quay về
+  Future<void> _openTaskDetail(Task task) async {
+    await Navigator.push<Task>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TaskDetailScreen(task: task),
+      ),
+    );
+
+    if (!mounted) return;
+
+    // Luôn tải lại dữ liệu mới nhất từ Backend
+    await _reloadTasks();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -130,8 +167,17 @@ class _TaskListScreenState extends State<TaskListScreen> {
           ),
         ],
       ),
+
+      // Nút tạo công việc
+      floatingActionButton: FloatingActionButton(
+        onPressed: _openCreateTaskScreen,
+        tooltip: 'Tạo công việc',
+        child: const Icon(Icons.add),
+      ),
+
       body: Column(
         children: [
+          // Bộ lọc công việc
           Padding(
             padding: const EdgeInsets.all(16),
             child: DropdownButtonFormField<String?>(
@@ -166,6 +212,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
               onChanged: _changeType,
             ),
           ),
+
+          // Danh sách công việc
           Expanded(
             child: FutureBuilder<List<Task>>(
               future: _tasksFuture,
@@ -216,6 +264,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
                 final tasks = snapshot.data ?? [];
 
+                // Không có công việc
                 if (tasks.isEmpty) {
                   return RefreshIndicator(
                     onRefresh: _reloadTasks,
@@ -244,13 +293,16 @@ class _TaskListScreenState extends State<TaskListScreen> {
                         ),
                         const SizedBox(height: 8),
                         const Center(
-                          child: Text('Kéo xuống để tải lại.'),
+                          child: Text(
+                            'Kéo xuống để tải lại.',
+                          ),
                         ),
                       ],
                     ),
                   );
                 }
 
+                // Hiển thị danh sách
                 return RefreshIndicator(
                   onRefresh: _reloadTasks,
                   child: ListView.builder(
@@ -262,21 +314,13 @@ class _TaskListScreenState extends State<TaskListScreen> {
                       final task = tasks[index];
 
                       return Card(
-                        margin:
-                        const EdgeInsets.only(bottom: 12),
-
+                        margin: const EdgeInsets.only(
+                          bottom: 12,
+                        ),
                         child: ListTile(
                           onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => TaskDetailScreen(task: task),
-                              ),
-                            );
+                            _openTaskDetail(task);
                           },
-                          // Giữ nguyên các thuộc tính leading, title,
-                          // subtitle và trailing hiện có ở bên dưới.
-
                           leading: Icon(
                             task.completed
                                 ? Icons.check_circle

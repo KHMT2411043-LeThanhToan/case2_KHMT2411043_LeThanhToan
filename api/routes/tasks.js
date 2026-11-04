@@ -110,6 +110,128 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 });
 
+// PUT /api/tasks/:id - chinh sua cong viec
+router.put('/:id', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { title, description, completed } = req.body;
+
+        if (!isValidId(id)) {
+            return res.status(400).json({
+                message: 'ID cong viec khong hop le'
+            });
+        }
+
+        const task = await Task.findById(id);
+
+        if (!task) {
+            return res.status(404).json({
+                message: 'Khong tim thay cong viec'
+            });
+        }
+
+        // Chi nguoi tao cong viec moi duoc chinh sua
+        if (String(task.createdBy) !== String(req.userId)) {
+            return res.status(403).json({
+                message: 'Ban khong co quyen chinh sua cong viec nay'
+            });
+        }
+
+        if (
+            title !== undefined &&
+            (typeof title !== 'string' || !title.trim())
+        ) {
+            return res.status(400).json({
+                message: 'Tieu de cong viec khong duoc de trong'
+            });
+        }
+
+        if (
+            description !== undefined &&
+            typeof description !== 'string'
+        ) {
+            return res.status(400).json({
+                message: 'Mo ta cong viec khong hop le'
+            });
+        }
+
+        if (
+            completed !== undefined &&
+            typeof completed !== 'boolean'
+        ) {
+            return res.status(400).json({
+                message: 'Trang thai cong viec khong hop le'
+            });
+        }
+
+        if (title !== undefined) {
+            task.title = title.trim();
+        }
+
+        if (description !== undefined) {
+            task.description = description;
+        }
+
+        if (completed !== undefined) {
+            task.completed = completed;
+        }
+
+        await task.save();
+
+        return res.json({
+            message: 'Cap nhat cong viec thanh cong',
+            task
+        });
+    } catch (error) {
+        console.error('Loi cap nhat cong viec:', error);
+
+        return res.status(500).json({
+            message: 'Khong the cap nhat cong viec'
+        });
+    }
+});
+// DELETE /api/tasks/:id - xoa cong viec
+router.delete('/:id', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Kiem tra ID cong viec
+        if (!isValidId(id)) {
+            return res.status(400).json({
+                message: 'ID cong viec khong hop le'
+            });
+        }
+
+        // Tim cong viec
+        const task = await Task.findById(id);
+
+        if (!task) {
+            return res.status(404).json({
+                message: 'Khong tim thay cong viec'
+            });
+        }
+
+        // Chi nguoi tao cong viec moi duoc xoa
+        if (String(task.createdBy) !== String(req.userId)) {
+            return res.status(403).json({
+                message: 'Ban khong co quyen xoa cong viec nay'
+            });
+        }
+
+        // Xoa cong viec
+        await Task.findByIdAndDelete(id);
+
+        return res.json({
+            message: 'Xoa cong viec thanh cong'
+        });
+    } catch (error) {
+        console.error('Loi xoa cong viec:', error);
+
+        return res.status(500).json({
+            message: 'Khong the xoa cong viec'
+        });
+    }
+});
 // POST /api/tasks/:id/accept - nhan cong viec
 router.post('/:id/accept', authenticateToken, async (req, res) => {
     try {
@@ -161,3 +283,4 @@ router.post('/:id/accept', authenticateToken, async (req, res) => {
 });
 
 module.exports = router;
+// Test nodemon tu dong reload
