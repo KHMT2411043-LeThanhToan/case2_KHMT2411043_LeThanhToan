@@ -1,11 +1,12 @@
-
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+
 class AuthService {
   static const String _baseUrl = 'http://10.0.2.2:5000/api/auth';
 
+  // Dang ky tai khoan
   Future<Map<String, dynamic>> register({
     required String fullName,
     required String email,
@@ -30,7 +31,7 @@ class AuthService {
     try {
       data = jsonDecode(response.body) as Map<String, dynamic>;
     } catch (_) {
-      throw Exception('Máy chủ trả về dữ liệu không hợp lệ.');
+      throw Exception('May chu tra ve du lieu khong hop le.');
     }
 
     if (response.statusCode == 201) {
@@ -39,11 +40,11 @@ class AuthService {
     }
 
     throw Exception(
-      data['message'] ?? 'Đăng ký thất bại. Vui lòng thử lại.',
+      data['message'] ?? 'Dang ky that bai. Vui long thu lai.',
     );
   }
 
-
+  // Dang nhap
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
@@ -66,7 +67,7 @@ class AuthService {
     try {
       data = jsonDecode(response.body) as Map<String, dynamic>;
     } catch (_) {
-      throw Exception('Máy chủ trả về dữ liệu không hợp lệ.');
+      throw Exception('May chu tra ve du lieu khong hop le.');
     }
 
     if (response.statusCode == 200) {
@@ -75,9 +76,11 @@ class AuthService {
     }
 
     throw Exception(
-      data['message'] ?? 'Đăng nhập thất bại. Vui lòng thử lại.',
+      data['message'] ?? 'Dang nhap that bai. Vui long thu lai.',
     );
   }
+
+  // Luu token dang nhap
   Future<void> _saveToken(Map<String, dynamic> data) async {
     final token = data['token'];
 
@@ -87,11 +90,13 @@ class AuthService {
     }
   }
 
+  // Lay token
   Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('auth_token');
   }
 
+  // Dang xuat
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');

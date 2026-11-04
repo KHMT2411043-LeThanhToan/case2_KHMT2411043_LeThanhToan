@@ -1,3 +1,4 @@
+
 const mongoose = require('mongoose');
 
 const taskSchema = new mongoose.Schema(
@@ -11,9 +12,16 @@ const taskSchema = new mongoose.Schema(
             type: String,
             default: ''
         },
-        completed: {
-            type: Boolean,
-            default: false
+
+        // Trang thai cong viec
+        status: {
+            type: String,
+            enum: [
+                'not_started',
+                'in_progress',
+                'completed'
+            ],
+            default: 'not_started'
         },
 
         // Nguoi tao cong viec

@@ -39,6 +39,48 @@ class _TaskListScreenState extends State<TaskListScreen> {
     }
   }
 
+  // Lấy tên trạng thái công việc
+  String _getStatusLabel(String status) {
+    switch (status) {
+      case 'not_started':
+        return 'Chưa thực hiện';
+      case 'in_progress':
+        return 'Đang thực hiện';
+      case 'completed':
+        return 'Đã hoàn thành';
+      default:
+        return 'Chưa thực hiện';
+    }
+  }
+
+  // Lấy biểu tượng trạng thái
+  IconData _getStatusIcon(String status) {
+    switch (status) {
+      case 'not_started':
+        return Icons.radio_button_unchecked;
+      case 'in_progress':
+        return Icons.pending;
+      case 'completed':
+        return Icons.check_circle;
+      default:
+        return Icons.radio_button_unchecked;
+    }
+  }
+
+  // Lấy màu trạng thái
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'not_started':
+        return Colors.orange;
+      case 'in_progress':
+        return Colors.blue;
+      case 'completed':
+        return Colors.green;
+      default:
+        return Colors.orange;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -322,35 +364,25 @@ class _TaskListScreenState extends State<TaskListScreen> {
                             _openTaskDetail(task);
                           },
                           leading: Icon(
-                            task.completed
-                                ? Icons.check_circle
-                                : Icons.radio_button_unchecked,
-                            color: task.completed
-                                ? Colors.green
-                                : Colors.blueGrey,
+                            _getStatusIcon(task.status),
+                            color: _getStatusColor(task.status),
                             size: 30,
                           ),
                           title: Text(
                             task.title,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontWeight: FontWeight.bold,
-                              decoration: task.completed
-                                  ? TextDecoration.lineThrough
-                                  : TextDecoration.none,
                             ),
                           ),
                           subtitle: task.description.isEmpty
                               ? const Text('Không có mô tả')
                               : Text(task.description),
                           trailing: Text(
-                            task.completed
-                                ? 'Hoàn thành'
-                                : 'Chưa xong',
+                            _getStatusLabel(task.status),
                             style: TextStyle(
-                              color: task.completed
-                                  ? Colors.green
-                                  : Colors.orange,
+                              color: _getStatusColor(task.status),
                               fontSize: 12,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),

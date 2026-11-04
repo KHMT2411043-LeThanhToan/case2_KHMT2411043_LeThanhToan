@@ -3,7 +3,7 @@ class Task {
   final String id;
   final String title;
   final String description;
-  final bool completed;
+  final String status;
   final String createdBy;
   final List<String> assignedTo;
   final List<String> acceptedBy;
@@ -13,7 +13,7 @@ class Task {
     required this.id,
     required this.title,
     required this.description,
-    required this.completed,
+    this.status = 'not_started',
     this.createdBy = '',
     this.assignedTo = const [],
     this.acceptedBy = const [],
@@ -35,7 +35,7 @@ class Task {
       id: json['_id']?.toString() ?? '',
       title: json['title']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
-      completed: json['completed'] == true,
+      status: json['status']?.toString() ?? 'not_started',
       createdBy: json['createdBy']?.toString() ?? '',
       assignedTo: parseIds(json['assignedTo']),
       acceptedBy: parseIds(json['acceptedBy']),

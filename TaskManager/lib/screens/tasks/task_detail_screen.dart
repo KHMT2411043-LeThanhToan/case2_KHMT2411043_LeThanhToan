@@ -31,6 +31,45 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     _task = widget.task;
   }
 
+  String _getStatusLabel(String status) {
+    switch (status) {
+      case 'not_started':
+        return 'Chưa thực hiện';
+      case 'in_progress':
+        return 'Đang thực hiện';
+      case 'completed':
+        return 'Đã hoàn thành';
+      default:
+        return 'Chưa thực hiện';
+    }
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status) {
+      case 'not_started':
+        return Icons.radio_button_unchecked;
+      case 'in_progress':
+        return Icons.pending;
+      case 'completed':
+        return Icons.check_circle;
+      default:
+        return Icons.radio_button_unchecked;
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'not_started':
+        return Colors.orange;
+      case 'in_progress':
+        return Colors.blue;
+      case 'completed':
+        return Colors.green;
+      default:
+        return Colors.orange;
+    }
+  }
+
   Widget _buildInfo(
       String label,
       String value,
@@ -188,24 +227,24 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
+
                       Row(
                         children: [
                           Icon(
-                            _task.completed
-                                ? Icons.check_circle
-                                : Icons.radio_button_unchecked,
-                            color: _task.completed
-                                ? Colors.green
-                                : Colors.orange,
+                            _getStatusIcon(_task.status),
+                            color: _getStatusColor(_task.status),
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            _task.completed
-                                ? 'Hoàn thành'
-                                : 'Chưa xong',
+                            _getStatusLabel(_task.status),
+                            style: TextStyle(
+                              color: _getStatusColor(_task.status),
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ],
                       ),
+
                     ],
                   ),
                 ),

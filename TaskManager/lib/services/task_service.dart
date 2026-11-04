@@ -80,15 +80,27 @@ class TaskService {
   }
 
   // Chỉnh sửa công việc
+
+  // Chỉnh sửa công việc và cập nhật trạng thái
   Future<Task> updateTask({
     required String taskId,
     required String title,
     required String description,
+    String? status,
   }) async {
     final token = await AuthService().getToken();
 
     if (token == null || token.isEmpty) {
       throw Exception('Vui long dang nhap lai.');
+    }
+
+    final Map<String, dynamic> requestData = {
+      'title': title,
+      'description': description,
+    };
+
+    if (status != null) {
+      requestData['status'] = status;
     }
 
     final response = await http.put(
@@ -97,10 +109,7 @@ class TaskService {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       },
-      body: jsonEncode({
-        'title': title,
-        'description': description,
-      }),
+      body: jsonEncode(requestData),
     );
 
     if (response.statusCode == 200) {
@@ -109,13 +118,13 @@ class TaskService {
       return Task.fromJson(data['task'] as Map<String, dynamic>);
     }
 
-    final Map<String, dynamic> errorData =
-    jsonDecode(response.body);
+    final Map<String, dynamic> errorData = jsonDecode(response.body);
 
     throw Exception(
       errorData['message'] ?? 'Khong the cap nhat cong viec.',
     );
   }
+
   // Xóa công việc
   Future<void> deleteTask({
     required String taskId,

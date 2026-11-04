@@ -24,6 +24,8 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
 
   final TaskService _taskService = TaskService();
 
+  late String _selectedStatus;
+
   bool _isLoading = false;
 
   @override
@@ -37,7 +39,17 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     _descriptionController = TextEditingController(
       text: widget.task.description,
     );
+
+    _selectedStatus = [
+      'not_started',
+      'in_progress',
+      'completed',
+    ].contains(widget.task.status)
+        ? widget.task.status
+        : 'not_started';
   }
+
+
 
   Future<void> _updateTask() async {
     if (!_formKey.currentState!.validate()) {
@@ -53,6 +65,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
         taskId: widget.task.id,
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
+        status: _selectedStatus,
       );
 
       if (!mounted) return;
@@ -124,6 +137,39 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                   alignLabelWithHint: true,
                 ),
               ),
+              const SizedBox(height: 16),
+
+              // Chon trang thai cong viec
+              DropdownButtonFormField<String>(initialValue: _selectedStatus,
+                decoration: const InputDecoration(
+                  labelText: 'Trạng thái công việc',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'not_started',
+                    child: Text('Chưa thực hiện'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'in_progress',
+                    child: Text('Đang thực hiện'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'completed',
+                    child: Text('Đã hoàn thành'),
+                  ),
+                ],
+                onChanged: _isLoading
+                    ? null
+                    : (value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedStatus = value;
+                    });
+                  }
+                },
+              ),
+
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,

@@ -13,6 +13,7 @@ router.get('/', authenticateToken, async (req, res) => {
     try {
         const userId = req.userId;
         const type = req.query.type;
+
         console.log('User ID:', userId);
         console.log('Task filter:', type);
 
@@ -44,11 +45,13 @@ router.get('/', authenticateToken, async (req, res) => {
 
         const tasks = await Task.find(filter)
             .sort({ createdAt: -1 });
-            console.log('So cong viec tim thay:', tasks.length);
+
+        console.log('So cong viec tim thay:', tasks.length);
 
         return res.json(tasks);
     } catch (error) {
         console.error('Loi lay danh sach cong viec:', error);
+
         return res.status(500).json({
             message: 'Khong the lay danh sach cong viec'
         });
@@ -58,7 +61,12 @@ router.get('/', authenticateToken, async (req, res) => {
 // POST /api/tasks - tao cong viec
 router.post('/', authenticateToken, async (req, res) => {
     try {
-        const { title, description, assignedTo, sharedWith } = req.body;
+        const {
+            title,
+            description,
+            assignedTo,
+            sharedWith
+        } = req.body;
 
         if (typeof title !== 'string' || !title.trim()) {
             return res.status(400).json({
@@ -104,17 +112,18 @@ router.post('/', authenticateToken, async (req, res) => {
         });
     } catch (error) {
         console.error('Loi tao cong viec:', error);
+
         return res.status(500).json({
             message: 'Khong the tao cong viec'
         });
     }
 });
 
-// PUT /api/tasks/:id - chinh sua cong viec
+// PUT /api/tasks/:id - chinh sua cong viec va trang thai
 router.put('/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
-        const { title, description, completed } = req.body;
+        const { title, description, status } = req.body;
 
         if (!isValidId(id)) {
             return res.status(400).json({
@@ -155,9 +164,15 @@ router.put('/:id', authenticateToken, async (req, res) => {
             });
         }
 
+        const validStatuses = [
+            'not_started',
+            'in_progress',
+            'completed'
+        ];
+
         if (
-            completed !== undefined &&
-            typeof completed !== 'boolean'
+            status !== undefined &&
+            !validStatuses.includes(status)
         ) {
             return res.status(400).json({
                 message: 'Trang thai cong viec khong hop le'
@@ -172,8 +187,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
             task.description = description;
         }
 
-        if (completed !== undefined) {
-            task.completed = completed;
+        if (status !== undefined) {
+            task.status = status;
         }
 
         await task.save();
@@ -190,6 +205,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
         });
     }
 });
+
 // DELETE /api/tasks/:id - xoa cong viec
 router.delete('/:id', authenticateToken, async (req, res) => {
     try {
@@ -232,6 +248,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
         });
     }
 });
+
 // POST /api/tasks/:id/accept - nhan cong viec
 router.post('/:id/accept', authenticateToken, async (req, res) => {
     try {
@@ -276,6 +293,7 @@ router.post('/:id/accept', authenticateToken, async (req, res) => {
         });
     } catch (error) {
         console.error('Loi nhan cong viec:', error);
+
         return res.status(500).json({
             message: 'Khong the nhan cong viec'
         });
@@ -283,4 +301,3 @@ router.post('/:id/accept', authenticateToken, async (req, res) => {
 });
 
 module.exports = router;
-// Test nodemon tu dong reload
