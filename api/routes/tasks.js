@@ -8,14 +8,13 @@ const router = express.Router();
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
+const validPriorities = ['low', 'medium', 'high'];
+
 // GET /api/tasks?type=created|assigned|accepted|shared
 router.get('/', authenticateToken, async (req, res) => {
     try {
         const userId = req.userId;
         const type = req.query.type;
-
-        console.log('User ID:', userId);
-        console.log('Task filter:', type);
 
         const filters = {
             created: { createdBy: userId },
@@ -46,8 +45,6 @@ router.get('/', authenticateToken, async (req, res) => {
         const tasks = await Task.find(filter)
             .sort({ createdAt: -1 });
 
-        console.log('So cong viec tim thay:', tasks.length);
-
         return res.json(tasks);
     } catch (error) {
         console.error('Loi lay danh sach cong viec:', error);
@@ -65,7 +62,8 @@ router.post('/', authenticateToken, async (req, res) => {
             title,
             description,
             assignedTo,
-            sharedWith
+            sharedWith,
+            priority
         } = req.body;
 
         if (typeof title !== 'string' || !title.trim()) {
@@ -80,6 +78,15 @@ router.post('/', authenticateToken, async (req, res) => {
         ) {
             return res.status(400).json({
                 message: 'Mo ta cong viec khong hop le'
+            });
+        }
+
+        if (
+            priority !== undefined &&
+            !validPriorities.includes(priority)
+        ) {
+            return res.status(400).json({
+                message: 'Muc do uu tien khong hop le'
             });
         }
 
@@ -100,6 +107,7 @@ router.post('/', authenticateToken, async (req, res) => {
         const task = await Task.create({
             title: title.trim(),
             description: description || '',
+            priority: priority || 'medium',
             createdBy: req.userId,
             assignedTo: assigned,
             acceptedBy: [],
@@ -119,11 +127,11 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 });
 
-// PUT /api/tasks/:id - chinh sua cong viec va trang thai
+// PUT /api/tasks/:id - chinh sua cong viec, trang thai va uu tien
 router.put('/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
-        const { title, description, status } = req.body;
+        const { title, description, status, priority } = req.body;
 
         if (!isValidId(id)) {
             return res.status(400).json({
@@ -179,6 +187,15 @@ router.put('/:id', authenticateToken, async (req, res) => {
             });
         }
 
+        if (
+            priority !== undefined &&
+            !validPriorities.includes(priority)
+        ) {
+            return res.status(400).json({
+                message: 'Muc do uu tien khong hop le'
+            });
+        }
+
         if (title !== undefined) {
             task.title = title.trim();
         }
@@ -189,6 +206,10 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
         if (status !== undefined) {
             task.status = status;
+        }
+
+        if (priority !== undefined) {
+            task.priority = priority;
         }
 
         await task.save();
@@ -211,14 +232,12 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Kiem tra ID cong viec
         if (!isValidId(id)) {
             return res.status(400).json({
                 message: 'ID cong viec khong hop le'
             });
         }
 
-        // Tim cong viec
         const task = await Task.findById(id);
 
         if (!task) {
@@ -227,14 +246,12 @@ router.delete('/:id', authenticateToken, async (req, res) => {
             });
         }
 
-        // Chi nguoi tao cong viec moi duoc xoa
         if (String(task.createdBy) !== String(req.userId)) {
             return res.status(403).json({
                 message: 'Ban khong co quyen xoa cong viec nay'
             });
         }
 
-        // Xoa cong viec
         await Task.findByIdAndDelete(id);
 
         return res.json({

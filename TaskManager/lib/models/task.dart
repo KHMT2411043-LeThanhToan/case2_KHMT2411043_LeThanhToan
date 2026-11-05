@@ -4,6 +4,7 @@ class Task {
   final String title;
   final String description;
   final String status;
+  final String priority;
   final String createdBy;
   final List<String> assignedTo;
   final List<String> acceptedBy;
@@ -14,6 +15,7 @@ class Task {
     required this.title,
     required this.description,
     this.status = 'not_started',
+    this.priority = 'medium',
     this.createdBy = '',
     this.assignedTo = const [],
     this.acceptedBy = const [],
@@ -23,10 +25,12 @@ class Task {
   factory Task.fromJson(Map<String, dynamic> json) {
     List<String> parseIds(dynamic value) {
       if (value is! List) return [];
+
       return value.map((item) {
         if (item is Map<String, dynamic>) {
           return item['_id']?.toString() ?? '';
         }
+
         return item.toString();
       }).where((id) => id.isNotEmpty).toList();
     }
@@ -36,6 +40,7 @@ class Task {
       title: json['title']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
       status: json['status']?.toString() ?? 'not_started',
+      priority: json['priority']?.toString() ?? 'medium',
       createdBy: json['createdBy']?.toString() ?? '',
       assignedTo: parseIds(json['assignedTo']),
       acceptedBy: parseIds(json['acceptedBy']),

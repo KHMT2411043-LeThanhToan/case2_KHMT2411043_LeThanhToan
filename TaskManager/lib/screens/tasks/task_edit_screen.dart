@@ -25,6 +25,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
   final TaskService _taskService = TaskService();
 
   late String _selectedStatus;
+  late String _selectedPriority;
 
   bool _isLoading = false;
 
@@ -47,9 +48,15 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     ].contains(widget.task.status)
         ? widget.task.status
         : 'not_started';
+
+    _selectedPriority = [
+      'low',
+      'medium',
+      'high',
+    ].contains(widget.task.priority)
+        ? widget.task.priority
+        : 'medium';
   }
-
-
 
   Future<void> _updateTask() async {
     if (!_formKey.currentState!.validate()) {
@@ -66,6 +73,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
         status: _selectedStatus,
+        priority: _selectedPriority,
       );
 
       if (!mounted) return;
@@ -127,7 +135,9 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                   return null;
                 },
               ),
+
               const SizedBox(height: 16),
+
               TextFormField(
                 controller: _descriptionController,
                 maxLines: 4,
@@ -137,10 +147,12 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                   alignLabelWithHint: true,
                 ),
               ),
+
               const SizedBox(height: 16),
 
               // Chon trang thai cong viec
-              DropdownButtonFormField<String>(initialValue: _selectedStatus,
+              DropdownButtonFormField<String>(
+                initialValue: _selectedStatus,
                 decoration: const InputDecoration(
                   labelText: 'Trạng thái công việc',
                   border: OutlineInputBorder(),
@@ -170,7 +182,42 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                 },
               ),
 
+              const SizedBox(height: 16),
+
+              // Chon muc do uu tien
+              DropdownButtonFormField<String>(
+                initialValue: _selectedPriority,
+                decoration: const InputDecoration(
+                  labelText: 'Mức độ ưu tiên',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'low',
+                    child: Text('Thấp'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'medium',
+                    child: Text('Trung bình'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'high',
+                    child: Text('Cao'),
+                  ),
+                ],
+                onChanged: _isLoading
+                    ? null
+                    : (value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedPriority = value;
+                    });
+                  }
+                },
+              ),
+
               const SizedBox(height: 24),
+
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(

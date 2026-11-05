@@ -70,11 +70,50 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     }
   }
 
+  String _getPriorityLabel(String priority) {
+    switch (priority) {
+      case 'low':
+        return 'Thấp';
+      case 'medium':
+        return 'Trung bình';
+      case 'high':
+        return 'Cao';
+      default:
+        return 'Trung bình';
+    }
+  }
+
+  IconData _getPriorityIcon(String priority) {
+    switch (priority) {
+      case 'low':
+        return Icons.arrow_downward;
+      case 'medium':
+        return Icons.remove;
+      case 'high':
+        return Icons.arrow_upward;
+      default:
+        return Icons.remove;
+    }
+  }
+
+  Color _getPriorityColor(String priority) {
+    switch (priority) {
+      case 'low':
+        return Colors.green;
+      case 'medium':
+        return Colors.orange;
+      case 'high':
+        return Colors.red;
+      default:
+        return Colors.orange;
+    }
+  }
+
   Widget _buildInfo(
-      String label,
-      String value,
-      IconData icon,
-      ) {
+    String label,
+    String value,
+    IconData icon,
+  ) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
@@ -100,7 +139,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  // Mở màn hình chỉnh sửa công việc
+  // Mo man hinh chinh sua cong viec
   Future<void> _openEditScreen() async {
     final updatedTask = await Navigator.push<Task>(
       context,
@@ -118,7 +157,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     }
   }
 
-  // Xác nhận và xóa công việc
+  // Xac nhan va xoa cong viec
   Future<void> _deleteTask() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -167,7 +206,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         ),
       );
 
-      // Quay về danh sách công việc
       Navigator.pop(context);
     } catch (error) {
       if (!mounted) return;
@@ -193,14 +231,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       appBar: AppBar(
         title: const Text('Chi tiết công việc'),
         actions: [
-          // Nút chỉnh sửa công việc
           IconButton(
             icon: const Icon(Icons.edit),
             tooltip: 'Chỉnh sửa công việc',
             onPressed: _isDeleting ? null : _openEditScreen,
           ),
-
-          // Nút xóa công việc
           IconButton(
             icon: const Icon(Icons.delete),
             tooltip: 'Xóa công việc',
@@ -226,8 +261,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+
                       const SizedBox(height: 12),
 
+                      // Trang thai cong viec
                       Row(
                         children: [
                           Icon(
@@ -245,10 +282,36 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         ],
                       ),
 
+                      const SizedBox(height: 12),
+
+                      // Muc do uu tien
+                      Row(
+                        children: [
+                          Icon(
+                            _getPriorityIcon(_task.priority),
+                            color: _getPriorityColor(_task.priority),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Mức độ ưu tiên: ',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            _getPriorityLabel(_task.priority),
+                            style: TextStyle(
+                              color: _getPriorityColor(_task.priority),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
               ),
+
               const SizedBox(height: 12),
 
               _buildInfo(

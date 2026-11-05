@@ -18,6 +18,8 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
 
   final TaskService _taskService = TaskService();
 
+  String _selectedPriority = 'medium';
+
   bool _isLoading = false;
 
   Future<void> _createTask() async {
@@ -33,6 +35,7 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
       await _taskService.createTask(
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
+        priority: _selectedPriority,
       );
 
       if (!mounted) return;
@@ -93,7 +96,9 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
                   return null;
                 },
               ),
+
               const SizedBox(height: 16),
+
               TextFormField(
                 controller: _descriptionController,
                 maxLines: 4,
@@ -103,7 +108,43 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
                   alignLabelWithHint: true,
                 ),
               ),
+
+              const SizedBox(height: 16),
+
+              // Chon muc do uu tien
+              DropdownButtonFormField<String>(
+                initialValue: _selectedPriority,
+                decoration: const InputDecoration(
+                  labelText: 'Mức độ ưu tiên',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'low',
+                    child: Text('Thấp'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'medium',
+                    child: Text('Trung bình'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'high',
+                    child: Text('Cao'),
+                  ),
+                ],
+                onChanged: _isLoading
+                    ? null
+                    : (value) {
+                        if (value != null) {
+                          setState(() {
+                            _selectedPriority = value;
+                          });
+                        }
+                      },
+              ),
+
               const SizedBox(height: 24),
+
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(

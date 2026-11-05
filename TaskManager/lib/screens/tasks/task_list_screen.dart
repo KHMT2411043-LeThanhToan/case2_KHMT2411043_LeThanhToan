@@ -13,8 +13,7 @@ class TaskListScreen extends StatefulWidget {
   const TaskListScreen({super.key});
 
   @override
-  State<TaskListScreen> createState() =>
-      _TaskListScreenState();
+  State<TaskListScreen> createState() => _TaskListScreenState();
 }
 
 class _TaskListScreenState extends State<TaskListScreen> {
@@ -39,7 +38,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
     }
   }
 
-  // Lấy tên trạng thái công việc
   String _getStatusLabel(String status) {
     switch (status) {
       case 'not_started':
@@ -53,7 +51,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
     }
   }
 
-  // Lấy biểu tượng trạng thái
   IconData _getStatusIcon(String status) {
     switch (status) {
       case 'not_started':
@@ -67,7 +64,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
     }
   }
 
-  // Lấy màu trạng thái
   Color _getStatusColor(String status) {
     switch (status) {
       case 'not_started':
@@ -81,20 +77,44 @@ class _TaskListScreenState extends State<TaskListScreen> {
     }
   }
 
+  String _getPriorityLabel(String priority) {
+    switch (priority) {
+      case 'low':
+        return 'Thấp';
+      case 'medium':
+        return 'Trung bình';
+      case 'high':
+        return 'Cao';
+      default:
+        return 'Trung bình';
+    }
+  }
+
+  Color _getPriorityColor(String priority) {
+    switch (priority) {
+      case 'low':
+        return Colors.green;
+      case 'medium':
+        return Colors.orange;
+      case 'high':
+        return Colors.red;
+      default:
+        return Colors.orange;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _loadTasks();
   }
 
-  // Tải danh sách công việc
   void _loadTasks() {
     _tasksFuture = _taskService.fetchTasks(
       type: _selectedType,
     );
   }
 
-  // Thay đổi bộ lọc
   void _changeType(String? type) {
     setState(() {
       _selectedType = type;
@@ -102,7 +122,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
     });
   }
 
-  // Tải lại danh sách công việc
   Future<void> _reloadTasks() async {
     setState(() {
       _loadTasks();
@@ -111,7 +130,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
     await _tasksFuture;
   }
 
-  // Mở màn hình tạo công việc
   Future<void> _openCreateTaskScreen() async {
     final result = await Navigator.push<bool>(
       context,
@@ -127,7 +145,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
     }
   }
 
-  // Xác nhận đăng xuất
   Future<void> _confirmLogout() async {
     final shouldLogout = await showDialog<bool>(
       context: context,
@@ -168,7 +185,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
     );
   }
 
-  // Mở chi tiết và tải lại danh sách khi quay về
   Future<void> _openTaskDetail(Task task) async {
     await Navigator.push<Task>(
       context,
@@ -179,7 +195,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
     if (!mounted) return;
 
-    // Luôn tải lại dữ liệu mới nhất từ Backend
     await _reloadTasks();
   }
 
@@ -209,17 +224,13 @@ class _TaskListScreenState extends State<TaskListScreen> {
           ),
         ],
       ),
-
-      // Nút tạo công việc
       floatingActionButton: FloatingActionButton(
         onPressed: _openCreateTaskScreen,
         tooltip: 'Tạo công việc',
         child: const Icon(Icons.add),
       ),
-
       body: Column(
         children: [
-          // Bộ lọc công việc
           Padding(
             padding: const EdgeInsets.all(16),
             child: DropdownButtonFormField<String?>(
@@ -254,8 +265,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
               onChanged: _changeType,
             ),
           ),
-
-          // Danh sách công việc
           Expanded(
             child: FutureBuilder<List<Task>>(
               future: _tasksFuture,
@@ -306,7 +315,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
                 final tasks = snapshot.data ?? [];
 
-                // Không có công việc
                 if (tasks.isEmpty) {
                   return RefreshIndicator(
                     onRefresh: _reloadTasks,
@@ -344,7 +352,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
                   );
                 }
 
-                // Hiển thị danh sách
                 return RefreshIndicator(
                   onRefresh: _reloadTasks,
                   child: ListView.builder(
@@ -374,9 +381,45 @@ class _TaskListScreenState extends State<TaskListScreen> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          subtitle: task.description.isEmpty
-                              ? const Text('Không có mô tả')
-                              : Text(task.description),
+                          subtitle: Column(
+                            crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const SizedBox(height: 4),
+                              Text(
+                                task.description.isEmpty
+                                    ? 'Không có mô tả'
+                                    : task.description,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.flag,
+                                    size: 16,
+                                    color: _getPriorityColor(
+                                      task.priority,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Ưu tiên: ${_getPriorityLabel(task.priority)}',
+                                    style: TextStyle(
+                                      color: _getPriorityColor(
+                                        task.priority,
+                                      ),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                           trailing: Text(
                             _getStatusLabel(task.status),
                             style: TextStyle(

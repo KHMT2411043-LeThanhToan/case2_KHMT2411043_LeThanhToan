@@ -9,7 +9,7 @@ class TaskService {
   static const String baseUrl =
       'http://10.0.2.2:5000/api/tasks';
 
-  // Lấy danh sách công việc
+  // Lay danh sach cong viec
   Future<List<Task>> fetchTasks({String? type}) async {
     final token = await AuthService().getToken();
 
@@ -42,10 +42,11 @@ class TaskService {
     );
   }
 
-  // Tạo công việc
+  // Tao cong viec
   Future<Task> createTask({
     required String title,
     String description = '',
+    String priority = 'medium',
   }) async {
     final token = await AuthService().getToken();
 
@@ -62,6 +63,7 @@ class TaskService {
       body: jsonEncode({
         'title': title,
         'description': description,
+        'priority': priority,
       }),
     );
 
@@ -79,14 +81,13 @@ class TaskService {
     );
   }
 
-  // Chỉnh sửa công việc
-
-  // Chỉnh sửa công việc và cập nhật trạng thái
+  // Chinh sua cong viec va cap nhat trang thai, muc do uu tien
   Future<Task> updateTask({
     required String taskId,
     required String title,
     required String description,
     String? status,
+    String? priority,
   }) async {
     final token = await AuthService().getToken();
 
@@ -101,6 +102,10 @@ class TaskService {
 
     if (status != null) {
       requestData['status'] = status;
+    }
+
+    if (priority != null) {
+      requestData['priority'] = priority;
     }
 
     final response = await http.put(
@@ -125,7 +130,7 @@ class TaskService {
     );
   }
 
-  // Xóa công việc
+  // Xoa cong viec
   Future<void> deleteTask({
     required String taskId,
   }) async {
