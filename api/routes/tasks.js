@@ -43,6 +43,7 @@ router.get('/', authenticateToken, async (req, res) => {
         }
 
         const tasks = await Task.find(filter)
+            .populate('assignedTo', 'fullName email')
             .sort({ createdAt: -1 });
 
         return res.json(tasks);

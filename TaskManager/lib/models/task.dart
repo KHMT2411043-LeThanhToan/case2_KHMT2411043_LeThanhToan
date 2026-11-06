@@ -1,4 +1,22 @@
+class TaskAssignee {
+  final String id;
+  final String fullName;
+  final String email;
 
+  const TaskAssignee({
+    required this.id,
+    required this.fullName,
+    required this.email,
+  });
+
+  factory TaskAssignee.fromJson(Map<String, dynamic> json) {
+    return TaskAssignee(
+      id: json['_id']?.toString() ?? '',
+      fullName: json['fullName']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+    );
+  }
+}
 class Task {
   final String id;
   final String title;
@@ -9,6 +27,7 @@ class Task {
   final DateTime? dueDate;
   final String createdBy;
   final List<String> assignedTo;
+  final List<TaskAssignee> assignees;
   final List<String> acceptedBy;
   final List<String> sharedWith;
 
@@ -22,6 +41,7 @@ class Task {
     this.dueDate,
     this.createdBy = '',
     this.assignedTo = const [],
+    this.assignees = const [],
     this.acceptedBy = const [],
     this.sharedWith = const [],
   });
@@ -53,6 +73,12 @@ class Task {
           : null,
       createdBy: json['createdBy']?.toString() ?? '',
       assignedTo: parseIds(json['assignedTo']),
+      assignees: json['assignedTo'] is List
+          ? (json['assignedTo'] as List)
+          .whereType<Map<String, dynamic>>()
+          .map((item) => TaskAssignee.fromJson(item))
+          .toList()
+          : [],
       acceptedBy: parseIds(json['acceptedBy']),
       sharedWith: parseIds(json['sharedWith']),
     );
