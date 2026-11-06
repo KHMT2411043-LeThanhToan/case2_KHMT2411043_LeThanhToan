@@ -27,8 +27,46 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
   late String _selectedStatus;
   late String _selectedPriority;
 
-  bool _isLoading = false;
+  DateTime? _startDate;
+  DateTime? _dueDate;
 
+  bool _isLoading = false;
+// Ham mo lich chon ngay
+  Future<void> _selectDate({required bool isStartDate}) async {
+    final DateTime firstSelectableDate = isStartDate
+        ? DateTime(2000)
+        : (_startDate ?? DateTime(2000));
+
+    final DateTime initialDate = isStartDate
+        ? (_startDate ?? DateTime.now())
+        : (_dueDate ?? _startDate ?? DateTime.now());
+
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: firstSelectableDate,
+      lastDate: DateTime(2100),
+      helpText: isStartDate
+          ? 'Chọn ngày bắt đầu'
+          : 'Chọn hạn hoàn thành',
+      cancelText: 'Hủy',
+      confirmText: 'Chọn',
+    );
+
+    if (pickedDate == null || !mounted) return;
+
+    setState(() {
+      if (isStartDate) {
+        _startDate = pickedDate;
+
+        if (_dueDate != null && _dueDate!.isBefore(pickedDate)) {
+          _dueDate = null;
+        }
+      } else {
+        _dueDate = pickedDate;
+      }
+    });
+  }
   @override
   void initState() {
     super.initState();
@@ -56,6 +94,8 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     ].contains(widget.task.priority)
         ? widget.task.priority
         : 'medium';
+    _startDate = widget.task.startDate;
+    _dueDate = widget.task.dueDate;
   }
 
   Future<void> _updateTask() async {
@@ -74,6 +114,8 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
         description: _descriptionController.text.trim(),
         status: _selectedStatus,
         priority: _selectedPriority,
+        startDate: _startDate,
+        dueDate: _dueDate,
       );
 
       if (!mounted) return;
@@ -214,6 +256,48 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                     });
                   }
                 },
+              ),
+
+              const SizedBox(height: 16),
+
+// Chon ngay bat dau
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.calendar_today),
+                title: const Text('Ngày bắt đầu'),
+                subtitle: Text(
+                  _startDate == null
+                      ? 'Chưa chọn ngày'
+                      : '${_startDate!.day.toString().padLeft(2, '0')}/'
+                      '${_startDate!.month.toString().padLeft(2, '0')}/'
+                      '${_startDate!.year}',
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit_calendar),
+                  onPressed: _isLoading
+                      ? null
+                      : () => _selectDate(isStartDate: true),
+                ),
+              ),
+
+// Chon han hoan thanh
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.event),
+                title: const Text('Hạn hoàn thành'),
+                subtitle: Text(
+                  _dueDate == null
+                      ? 'Chưa chọn ngày'
+                      : '${_dueDate!.day.toString().padLeft(2, '0')}/'
+                      '${_dueDate!.month.toString().padLeft(2, '0')}/'
+                      '${_dueDate!.year}',
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit_calendar),
+                  onPressed: _isLoading
+                      ? null
+                      : () => _selectDate(isStartDate: false),
+                ),
               ),
 
               const SizedBox(height: 24),

@@ -47,6 +47,8 @@ class TaskService {
     required String title,
     String description = '',
     String priority = 'medium',
+    DateTime? startDate,
+    DateTime? dueDate,
   }) async {
     final token = await AuthService().getToken();
 
@@ -64,6 +66,8 @@ class TaskService {
         'title': title,
         'description': description,
         'priority': priority,
+        'startDate': startDate?.toIso8601String(),
+        'dueDate': dueDate?.toIso8601String(),
       }),
     );
 
@@ -88,6 +92,8 @@ class TaskService {
     required String description,
     String? status,
     String? priority,
+    DateTime? startDate,
+    DateTime? dueDate,
   }) async {
     final token = await AuthService().getToken();
 
@@ -107,7 +113,8 @@ class TaskService {
     if (priority != null) {
       requestData['priority'] = priority;
     }
-
+    requestData['startDate'] = startDate?.toIso8601String();
+    requestData['dueDate'] = dueDate?.toIso8601String();
     final response = await http.put(
       Uri.parse('$baseUrl/$taskId'),
       headers: {

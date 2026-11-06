@@ -82,7 +82,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         return 'Trung bình';
     }
   }
+// Dinh dang ngay theo dd/MM/yyyy
+  String _formatDate(DateTime? date) {
+    if (date == null) {
+      return 'Chưa thiết lập';
+    }
 
+    return '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/'
+        '${date.year}';
+  }
   IconData _getPriorityIcon(String priority) {
     switch (priority) {
       case 'low':
@@ -319,7 +328,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 _task.description,
                 Icons.description_outlined,
               ),
+// Ngay bat dau cong viec
+              _buildInfo(
+                'Ngày bắt đầu',
+                _formatDate(_task.startDate),
+                Icons.calendar_today,
+              ),
 
+// Han hoan thanh cong viec
+              _buildInfo(
+                'Hạn hoàn thành',
+                _formatDate(_task.dueDate),
+                Icons.event,
+              ),
               _buildInfo(
                 'Người tạo (ID)',
                 _task.createdBy,

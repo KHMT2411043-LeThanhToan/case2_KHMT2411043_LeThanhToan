@@ -24,16 +24,28 @@ const taskSchema = new mongoose.Schema(
             default: 'not_started'
         },
 
-        // Muc do uu tien cong viec
-        priority: {
-            type: String,
-            enum: [
-                'low',
-                'medium',
-                'high'
-            ],
-            default: 'medium'
-        },
+                // Muc do uu tien cong viec
+                priority: {
+                    type: String,
+                    enum: [
+                        'low',
+                        'medium',
+                        'high'
+                    ],
+                    default: 'medium'
+                },
+
+                // Ngay bat dau cong viec
+                startDate: {
+                    type: Date,
+                    default: null
+                },
+
+                // Han hoan thanh cong viec
+                dueDate: {
+                    type: Date,
+                    default: null
+                },
 
         // Nguoi tao cong viec
         createdBy: {

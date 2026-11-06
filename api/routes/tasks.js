@@ -63,7 +63,9 @@ router.post('/', authenticateToken, async (req, res) => {
             description,
             assignedTo,
             sharedWith,
-            priority
+            priority,
+            startDate,
+            dueDate
         } = req.body;
 
         if (typeof title !== 'string' || !title.trim()) {
@@ -89,7 +91,37 @@ router.post('/', authenticateToken, async (req, res) => {
                 message: 'Muc do uu tien khong hop le'
             });
         }
+// Kiem tra ngay bat dau va han hoan thanh
+const parsedStartDate =
+    startDate === undefined || startDate === null || startDate === ''
+        ? null
+        : new Date(startDate);
 
+const parsedDueDate =
+    dueDate === undefined || dueDate === null || dueDate === ''
+        ? null
+        : new Date(dueDate);
+
+if (
+    (parsedStartDate !== null &&
+        Number.isNaN(parsedStartDate.getTime())) ||
+    (parsedDueDate !== null &&
+        Number.isNaN(parsedDueDate.getTime()))
+) {
+    return res.status(400).json({
+        message: 'Ngay bat dau hoac han hoan thanh khong hop le'
+    });
+}
+
+if (
+    parsedStartDate !== null &&
+    parsedDueDate !== null &&
+    parsedDueDate < parsedStartDate
+) {
+    return res.status(400).json({
+        message: 'Han hoan thanh khong duoc som hon ngay bat dau'
+    });
+}
         const assigned = assignedTo === undefined ? [] : assignedTo;
         const shared = sharedWith === undefined ? [] : sharedWith;
 
@@ -108,6 +140,8 @@ router.post('/', authenticateToken, async (req, res) => {
             title: title.trim(),
             description: description || '',
             priority: priority || 'medium',
+            startDate: parsedStartDate,
+            dueDate: parsedDueDate,
             createdBy: req.userId,
             assignedTo: assigned,
             acceptedBy: [],
@@ -131,7 +165,14 @@ router.post('/', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
-        const { title, description, status, priority } = req.body;
+        const {
+            title,
+            description,
+            status,
+            priority,
+            startDate,
+            dueDate
+        } = req.body;
 
         if (!isValidId(id)) {
             return res.status(400).json({
@@ -195,7 +236,41 @@ router.put('/:id', authenticateToken, async (req, res) => {
                 message: 'Muc do uu tien khong hop le'
             });
         }
+// Kiem tra ngay bat dau va han hoan thanh
+const parsedStartDate =
+    startDate === undefined
+        ? task.startDate
+        : startDate === null || startDate === ''
+            ? null
+            : new Date(startDate);
 
+const parsedDueDate =
+    dueDate === undefined
+        ? task.dueDate
+        : dueDate === null || dueDate === ''
+            ? null
+            : new Date(dueDate);
+
+if (
+    (parsedStartDate != null &&
+        Number.isNaN(new Date(parsedStartDate).getTime())) ||
+    (parsedDueDate != null &&
+        Number.isNaN(new Date(parsedDueDate).getTime()))
+) {
+    return res.status(400).json({
+        message: 'Ngay bat dau hoac han hoan thanh khong hop le'
+    });
+}
+
+if (
+    parsedStartDate != null &&
+    parsedDueDate != null &&
+    new Date(parsedDueDate) < new Date(parsedStartDate)
+) {
+    return res.status(400).json({
+        message: 'Han hoan thanh khong duoc som hon ngay bat dau'
+    });
+}
         if (title !== undefined) {
             task.title = title.trim();
         }
@@ -211,7 +286,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
         if (priority !== undefined) {
             task.priority = priority;
         }
-
+task.startDate = parsedStartDate;
+task.dueDate = parsedDueDate;
         await task.save();
 
         return res.json({

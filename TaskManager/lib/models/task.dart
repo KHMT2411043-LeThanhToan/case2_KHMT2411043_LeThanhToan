@@ -5,6 +5,8 @@ class Task {
   final String description;
   final String status;
   final String priority;
+  final DateTime? startDate;
+  final DateTime? dueDate;
   final String createdBy;
   final List<String> assignedTo;
   final List<String> acceptedBy;
@@ -16,6 +18,8 @@ class Task {
     required this.description,
     this.status = 'not_started',
     this.priority = 'medium',
+    this.startDate,
+    this.dueDate,
     this.createdBy = '',
     this.assignedTo = const [],
     this.acceptedBy = const [],
@@ -41,6 +45,12 @@ class Task {
       description: json['description']?.toString() ?? '',
       status: json['status']?.toString() ?? 'not_started',
       priority: json['priority']?.toString() ?? 'medium',
+      startDate: json['startDate'] != null
+          ? DateTime.tryParse(json['startDate'].toString())?.toLocal()
+          : null,
+      dueDate: json['dueDate'] != null
+          ? DateTime.tryParse(json['dueDate'].toString())?.toLocal()
+          : null,
       createdBy: json['createdBy']?.toString() ?? '',
       assignedTo: parseIds(json['assignedTo']),
       acceptedBy: parseIds(json['acceptedBy']),

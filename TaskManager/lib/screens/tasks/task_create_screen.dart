@@ -20,7 +20,46 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
 
   String _selectedPriority = 'medium';
 
+// Ngay bat dau va han hoan thanh
+  DateTime? _startDate;
+  DateTime? _dueDate;
+
   bool _isLoading = false;
+
+// Ham mo lich chon ngay
+  Future<void> _selectDate({required bool isStartDate}) async {
+    final DateTime initialDate = isStartDate
+        ? (_startDate ?? DateTime.now())
+        : (_dueDate ?? _startDate ?? DateTime.now());
+
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: isStartDate
+          ? DateTime(2000)
+          : (_startDate ?? DateTime(2000)),
+      lastDate: DateTime(2100),
+      helpText: isStartDate
+          ? 'Chọn ngày bắt đầu'
+          : 'Chọn hạn hoàn thành',
+      cancelText: 'Hủy',
+      confirmText: 'Chọn',
+    );
+
+    if (pickedDate == null || !mounted) return;
+
+    setState(() {
+      if (isStartDate) {
+        _startDate = pickedDate;
+
+        if (_dueDate != null && _dueDate!.isBefore(pickedDate)) {
+          _dueDate = null;
+        }
+      } else {
+        _dueDate = pickedDate;
+      }
+    });
+  }
 
   Future<void> _createTask() async {
     if (!_formKey.currentState!.validate()) {
@@ -36,6 +75,8 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
         priority: _selectedPriority,
+        startDate: _startDate,
+        dueDate: _dueDate,
       );
 
       if (!mounted) return;
@@ -141,6 +182,48 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
                           });
                         }
                       },
+              ),
+
+              const SizedBox(height: 16),
+
+// Chon ngay bat dau
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.calendar_today),
+                title: const Text('Ngày bắt đầu'),
+                subtitle: Text(
+                  _startDate == null
+                      ? 'Chưa chọn ngày'
+                      : '${_startDate!.day.toString().padLeft(2, '0')}/'
+                      '${_startDate!.month.toString().padLeft(2, '0')}/'
+                      '${_startDate!.year}',
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit_calendar),
+                  onPressed: _isLoading
+                      ? null
+                      : () => _selectDate(isStartDate: true),
+                ),
+              ),
+
+// Chon han hoan thanh
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.event),
+                title: const Text('Hạn hoàn thành'),
+                subtitle: Text(
+                  _dueDate == null
+                      ? 'Chưa chọn ngày'
+                      : '${_dueDate!.day.toString().padLeft(2, '0')}/'
+                      '${_dueDate!.month.toString().padLeft(2, '0')}/'
+                      '${_dueDate!.year}',
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit_calendar),
+                  onPressed: _isLoading
+                      ? null
+                      : () => _selectDate(isStartDate: false),
+                ),
               ),
 
               const SizedBox(height: 24),
