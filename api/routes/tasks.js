@@ -46,6 +46,7 @@ router.get('/', authenticateToken, async (req, res) => {
             .populate('assignedTo', 'fullName email')
             .populate('primaryAssigneeId', 'fullName email')
             .populate('sharedWith', 'fullName email')
+            .populate('sharedPermissions.user', 'fullName email')
             .sort({ createdAt: -1 });
 
         return res.json(tasks);
@@ -67,6 +68,7 @@ router.post('/', authenticateToken, async (req, res) => {
             assignedTo,
             primaryAssigneeId,
             sharedWith,
+            sharedPermissions,
             priority,
             startDate,
             dueDate
@@ -129,6 +131,40 @@ if (
         const assigned = assignedTo === undefined ? [] : assignedTo;
         const shared = sharedWith === undefined ? [] : sharedWith;
 
+        const permissions =
+            sharedPermissions === undefined ? [] : sharedPermissions;
+
+        if (
+            !Array.isArray(assigned) ||
+            !Array.isArray(shared) ||
+            !assigned.every(isValidId) ||
+            !shared.every(isValidId)
+        ) {
+            return res.status(400).json({
+                message: 'Danh sach nguoi dung khong hop le'
+            });
+        }
+
+        // Kiem tra quyen chia se
+        if (!Array.isArray(permissions)) {
+            return res.status(400).json({
+                message: 'Danh sach quyen chia se khong hop le'
+            });
+        }
+
+        for (const item of permissions) {
+            if (
+                !item ||
+                !isValidId(item.user) ||
+                !['viewer', 'editor'].includes(item.permission) ||
+                !shared.some(id => String(id) === String(item.user))
+            ) {
+                return res.status(400).json({
+                    message: 'Thong tin quyen chia se khong hop le'
+                });
+            }
+        }
+
         if (
             !Array.isArray(assigned) ||
             !Array.isArray(shared) ||
@@ -174,7 +210,8 @@ if (
             assignedTo: assigned,
             primaryAssigneeId: primaryAssigneeId || null,
             acceptedBy: [],
-            sharedWith: shared
+            sharedWith: shared,
+            sharedPermissions: permissions
         });
 
         return res.status(201).json({
@@ -217,8 +254,18 @@ router.put('/:id', authenticateToken, async (req, res) => {
             });
         }
 
-        // Chi nguoi tao cong viec moi duoc chinh sua
-        if (String(task.createdBy) !== String(req.userId)) {
+        // Nguoi tao cong viec co toan quyen chinh sua
+        const isCreator =
+            String(task.createdBy) === String(req.userId);
+
+        // Nguoi duoc chia se co quyen editor duoc phep chinh sua
+        const isEditor = task.sharedPermissions.some(item =>
+            String(item.user) === String(req.userId) &&
+            item.permission === 'editor'
+        );
+
+        // Chi creator hoac editor duoc chinh sua
+        if (!isCreator && !isEditor) {
             return res.status(403).json({
                 message: 'Ban khong co quyen chinh sua cong viec nay'
             });

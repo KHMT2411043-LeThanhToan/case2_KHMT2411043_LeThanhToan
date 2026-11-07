@@ -52,6 +52,7 @@ class TaskService {
     List<String> assignedTo = const [],
     String? primaryAssigneeId,
     List<String> sharedWith = const [],
+    List<Map<String, String>> sharedPermissions = const [],
   }) async {
     final token = await AuthService().getToken();
 
@@ -74,6 +75,7 @@ class TaskService {
         'assignedTo': assignedTo,
         'primaryAssigneeId': primaryAssigneeId,
         'sharedWith': sharedWith,
+        'sharedPermissions': sharedPermissions,
       }),
     );
 
@@ -83,8 +85,7 @@ class TaskService {
       return Task.fromJson(data['task'] as Map<String, dynamic>);
     }
 
-    final Map<String, dynamic> errorData =
-    jsonDecode(response.body);
+    final Map<String, dynamic> errorData = jsonDecode(response.body);
 
     throw Exception(
       errorData['message'] ?? 'Khong the tao cong viec.',
@@ -119,8 +120,10 @@ class TaskService {
     if (priority != null) {
       requestData['priority'] = priority;
     }
+
     requestData['startDate'] = startDate?.toIso8601String();
     requestData['dueDate'] = dueDate?.toIso8601String();
+
     final response = await http.put(
       Uri.parse('$baseUrl/$taskId'),
       headers: {
@@ -165,8 +168,7 @@ class TaskService {
       return;
     }
 
-    final Map<String, dynamic> errorData =
-    jsonDecode(response.body);
+    final Map<String, dynamic> errorData = jsonDecode(response.body);
 
     throw Exception(
       errorData['message'] ?? 'Khong the xoa cong viec.',

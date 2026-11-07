@@ -1,3 +1,4 @@
+
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -94,6 +95,43 @@ class AuthService {
   Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('auth_token');
+  }
+
+  // Lay ID nguoi dung hien tai tu JWT
+  Future<String?> getCurrentUserId() async {
+    final token = await getToken();
+
+    if (token == null || token.isEmpty) {
+      return null;
+    }
+
+    try {
+      final parts = token.split('.');
+
+      if (parts.length != 3) {
+        return null;
+      }
+
+      final payloadString = utf8.decode(
+        base64Url.decode(base64Url.normalize(parts[1])),
+      );
+
+      final payload = jsonDecode(payloadString);
+
+      if (payload is! Map<String, dynamic>) {
+        return null;
+      }
+
+      final userId =
+          payload['userId'] ??
+              payload['id'] ??
+              payload['_id'] ??
+              payload['sub'];
+
+      return userId?.toString();
+    } catch (_) {
+      return null;
+    }
   }
 
   // Dang xuat

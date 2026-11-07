@@ -19,6 +19,39 @@ class TaskAssignee {
   }
 }
 
+// Model luu thong tin nguoi duoc chia se va quyen cua ho
+class TaskShare {
+  final String userId;
+  final String fullName;
+  final String email;
+  final String permission;
+
+  const TaskShare({
+    required this.userId,
+    this.fullName = '',
+    this.email = '',
+    this.permission = 'viewer',
+  });
+
+  factory TaskShare.fromJson(Map<String, dynamic> json) {
+    final userData = json['user'];
+
+    if (userData is Map<String, dynamic>) {
+      return TaskShare(
+        userId: userData['_id']?.toString() ?? '',
+        fullName: userData['fullName']?.toString() ?? '',
+        email: userData['email']?.toString() ?? '',
+        permission: json['permission']?.toString() ?? 'viewer',
+      );
+    }
+
+    return TaskShare(
+      userId: userData?.toString() ?? '',
+      permission: json['permission']?.toString() ?? 'viewer',
+    );
+  }
+}
+
 class Task {
   final String id;
   final String title;
@@ -34,6 +67,7 @@ class Task {
   final TaskAssignee? primaryAssignee;
   final List<String> acceptedBy;
   final List<String> sharedWith;
+  final List<TaskShare> sharedPermissions;
 
   Task({
     required this.id,
@@ -50,6 +84,7 @@ class Task {
     this.primaryAssignee,
     this.acceptedBy = const [],
     this.sharedWith = const [],
+    this.sharedPermissions = const [],
   });
 
   factory Task.fromJson(Map<String, dynamic> json) {
@@ -104,6 +139,14 @@ class Task {
 
       acceptedBy: parseIds(json['acceptedBy']),
       sharedWith: parseIds(json['sharedWith']),
+
+      // Nguoi duoc chia se cu chua co quyen mac dinh la viewer
+      sharedPermissions: json['sharedPermissions'] is List
+          ? (json['sharedPermissions'] as List)
+          .whereType<Map<String, dynamic>>()
+          .map((item) => TaskShare.fromJson(item))
+          .toList()
+          : [],
     );
   }
 }

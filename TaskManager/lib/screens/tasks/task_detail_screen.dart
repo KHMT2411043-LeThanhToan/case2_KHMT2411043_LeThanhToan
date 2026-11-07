@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/task.dart';
+import '../../services/auth_service.dart';
 import '../../services/task_service.dart';
 import 'task_edit_screen.dart';
 
@@ -14,21 +15,62 @@ class TaskDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<TaskDetailScreen> createState() =>
-      _TaskDetailScreenState();
+  State<TaskDetailScreen> createState() => _TaskDetailScreenState();
 }
 
 class _TaskDetailScreenState extends State<TaskDetailScreen> {
   late Task _task;
 
   final TaskService _taskService = TaskService();
+  final AuthService _authService = AuthService();
 
+  String? _currentUserId;
+  bool _isLoadingUser = true;
   bool _isDeleting = false;
+
+  // Kiem tra nguoi tao cong viec
+  bool get _isCreator {
+    return _currentUserId != null &&
+        _task.createdBy == _currentUserId;
+  }
+
+  // Kiem tra nguoi duoc chia se co quyen Editor
+  bool get _isEditor {
+    if (_currentUserId == null) return false;
+
+    return _task.sharedPermissions.any((share) {
+      return share.userId == _currentUserId &&
+          share.permission == 'editor';
+    });
+  }
+
+  // Creator va Editor duoc phep sua
+  bool get _canEdit {
+    return _isCreator || _isEditor;
+  }
+
+  // Chi Creator duoc phep xoa
+  bool get _canDelete {
+    return _isCreator;
+  }
 
   @override
   void initState() {
     super.initState();
     _task = widget.task;
+    _loadCurrentUser();
+  }
+
+  // Lay ID nguoi dung dang dang nhap
+  Future<void> _loadCurrentUser() async {
+    final userId = await _authService.getCurrentUserId();
+
+    if (!mounted) return;
+
+    setState(() {
+      _currentUserId = userId;
+      _isLoadingUser = false;
+    });
   }
 
   String _getStatusLabel(String status) {
@@ -82,7 +124,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         return 'Trung bình';
     }
   }
-// Dinh dang ngay theo dd/MM/yyyy
+
   String _formatDate(DateTime? date) {
     if (date == null) {
       return 'Chưa thiết lập';
@@ -92,6 +134,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         '${date.month.toString().padLeft(2, '0')}/'
         '${date.year}';
   }
+
   IconData _getPriorityIcon(String priority) {
     switch (priority) {
       case 'low':
@@ -119,10 +162,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget _buildInfo(
-    String label,
-    String value,
-    IconData icon,
-  ) {
+      String label,
+      String value,
+      IconData icon,
+      ) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
@@ -240,16 +283,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       appBar: AppBar(
         title: const Text('Chi tiết công việc'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            tooltip: 'Chỉnh sửa công việc',
-            onPressed: _isDeleting ? null : _openEditScreen,
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete),
-            tooltip: 'Xóa công việc',
-            onPressed: _isDeleting ? null : _deleteTask,
-          ),
+          if (!_isLoadingUser && _canEdit)
+            IconButton(
+              icon: const Icon(Icons.edit),
+              tooltip: 'Chỉnh sửa công việc',
+              onPressed: _isDeleting ? null : _openEditScreen,
+            ),
+          if (!_isLoadingUser && _canDelete)
+            IconButton(
+              icon: const Icon(Icons.delete),
+              tooltip: 'Xóa công việc',
+              onPressed: _isDeleting ? null : _deleteTask,
+            ),
         ],
       ),
       body: Stack(
@@ -270,7 +315,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-
                       const SizedBox(height: 12),
 
                       // Trang thai cong viec
@@ -328,19 +372,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 _task.description,
                 Icons.description_outlined,
               ),
-// Ngay bat dau cong viec
+
               _buildInfo(
                 'Ngày bắt đầu',
                 _formatDate(_task.startDate),
                 Icons.calendar_today,
               ),
 
-// Han hoan thanh cong viec
               _buildInfo(
                 'Hạn hoàn thành',
                 _formatDate(_task.dueDate),
                 Icons.event,
               ),
+
               _buildInfo(
                 'Người tạo (ID)',
                 _task.createdBy,

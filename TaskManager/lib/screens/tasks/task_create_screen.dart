@@ -23,6 +23,8 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
   final List<Map<String, dynamic>> _selectedAssignees = [];
   final List<Map<String, dynamic>> _selectedSharedUsers = [];
 
+  final Map<String, String> _sharedUserPermissions = {};
+
   List<Map<String, dynamic>> _searchResults = [];
   List<Map<String, dynamic>> _shareSearchResults = [];
 
@@ -36,7 +38,7 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
   bool _isSearchingSharedUsers = false;
   bool _isCreating = false;
 
-  // Tìm kiếm người được giao công việc
+  // Tim kiem nguoi duoc giao
   Future<void> _searchUsers(String keyword) async {
     if (keyword.trim().isEmpty) {
       setState(() {
@@ -81,7 +83,7 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
     }
   }
 
-  // Thêm người được giao
+  // Them nguoi duoc giao
   void _addAssignee(Map<String, dynamic> user) {
     final userId = user['_id']?.toString();
 
@@ -95,16 +97,20 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
 
     setState(() {
       _selectedAssignees.add(user);
-      _primaryAssigneeId ??= userId;
+
       _searchResults.removeWhere(
             (item) => item['_id']?.toString() == userId,
       );
+
       _searchController.clear();
       _searchResults = [];
+
+      // Neu chua co nguoi phu trach chinh thi chon nguoi dau tien
+      _primaryAssigneeId ??= userId;
     });
   }
 
-  // Xóa người được giao
+  // Xoa nguoi duoc giao
   void _removeAssignee(String userId) {
     setState(() {
       _selectedAssignees.removeWhere(
@@ -119,7 +125,7 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
     });
   }
 
-  // Tìm kiếm người được chia sẻ công việc
+  // Tim kiem nguoi duoc chia se
   Future<void> _searchSharedUsers(String keyword) async {
     if (keyword.trim().isEmpty) {
       setState(() {
@@ -168,7 +174,7 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
     }
   }
 
-  // Thêm người được chia sẻ
+  // Them nguoi duoc chia se
   void _addSharedUser(Map<String, dynamic> user) {
     final userId = user['_id']?.toString();
 
@@ -188,24 +194,31 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
 
     setState(() {
       _selectedSharedUsers.add(user);
+
+      // Mac dinh quyen xem
+      _sharedUserPermissions[userId] = 'viewer';
+
       _shareSearchResults.removeWhere(
             (item) => item['_id']?.toString() == userId,
       );
+
       _shareSearchController.clear();
       _shareSearchResults = [];
     });
   }
 
-  // Xóa người được chia sẻ
+  // Xoa nguoi duoc chia se
   void _removeSharedUser(String userId) {
     setState(() {
       _selectedSharedUsers.removeWhere(
             (user) => user['_id']?.toString() == userId,
       );
+
+      _sharedUserPermissions.remove(userId);
     });
   }
 
-  // Chọn ngày
+  // Chon ngay
   Future<void> _selectDate(bool isStartDate) async {
     final selectedDate = await showDatePicker(
       context: context,
@@ -227,7 +240,7 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
     });
   }
 
-  // Tạo công việc
+  // Tao cong viec
   Future<void> _createTask() async {
     final title = _titleController.text.trim();
 
@@ -258,6 +271,14 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
         sharedWith: _selectedSharedUsers
             .map((user) => user['_id'].toString())
             .toList(),
+        sharedPermissions: _selectedSharedUsers.map((user) {
+          final userId = user['_id'].toString();
+
+          return {
+            'user': userId,
+            'permission': _sharedUserPermissions[userId] ?? 'viewer',
+          };
+        }).toList(),
       );
 
       if (!mounted) return;
@@ -400,7 +421,6 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
 
             const Divider(height: 32),
 
-            // Phần giao công việc
             const Text(
               'Giao công việc cho người khác',
               style: TextStyle(
@@ -520,9 +540,8 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
 
             const Divider(height: 32),
 
-            // Phần chia sẻ công việc
             const Text(
-              'Chia sẻ công việc để xem',
+              'Chia sẻ công việc',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
@@ -532,7 +551,7 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
             const SizedBox(height: 8),
 
             const Text(
-              'Những người được chia sẻ có thể xem công việc.',
+              'Chọn quyền cho từng người: Viewer hoặc Editor.',
               style: TextStyle(color: Colors.grey),
             ),
 
@@ -596,18 +615,51 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
                 final userId = user['_id'].toString();
 
                 return Card(
-                  child: ListTile(
-                    leading: const CircleAvatar(
-                      child: Icon(Icons.visibility_outlined),
-                    ),
-                    title: Text(user['fullName'] ?? 'Không có tên'),
-                    subtitle: Text(user['email'] ?? ''),
-                    trailing: IconButton(
-                      icon: const Icon(
-                        Icons.remove_circle_outline,
-                        color: Colors.red,
-                      ),
-                      onPressed: () => _removeSharedUser(userId),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Column(
+                      children: [
+                        ListTile(
+                          leading: const CircleAvatar(
+                            child: Icon(Icons.people_outline),
+                          ),
+                          title: Text(user['fullName'] ?? 'Không có tên'),
+                          subtitle: Text(user['email'] ?? ''),
+                          trailing: IconButton(
+                            icon: const Icon(
+                              Icons.remove_circle_outline,
+                              color: Colors.red,
+                            ),
+                            onPressed: () => _removeSharedUser(userId),
+                          ),
+                        ),
+
+                        DropdownButtonFormField<String>(
+                          initialValue:
+                          _sharedUserPermissions[userId] ?? 'viewer',
+                          decoration: const InputDecoration(
+                            labelText: 'Quyền truy cập',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'viewer',
+                              child: Text('Viewer - Chỉ xem'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'editor',
+                              child: Text('Editor - Được chỉnh sửa'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value == null) return;
+
+                            setState(() {
+                              _sharedUserPermissions[userId] = value;
+                            });
+                          },
+                        ),
+                      ],
                     ),
                   ),
                 );
