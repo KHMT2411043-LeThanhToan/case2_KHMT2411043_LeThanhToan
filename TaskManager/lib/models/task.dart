@@ -25,6 +25,7 @@ class Task {
   final String priority;
   final DateTime? startDate;
   final DateTime? dueDate;
+  final DateTime? createdAt;
   final String createdBy;
   final List<String> assignedTo;
   final List<TaskAssignee> assignees;
@@ -39,6 +40,7 @@ class Task {
     this.priority = 'medium',
     this.startDate,
     this.dueDate,
+    this.createdAt,
     this.createdBy = '',
     this.assignedTo = const [],
     this.assignees = const [],
@@ -70,6 +72,9 @@ class Task {
           : null,
       dueDate: json['dueDate'] != null
           ? DateTime.tryParse(json['dueDate'].toString())?.toLocal()
+          : null,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'].toString())?.toLocal()
           : null,
       createdBy: json['createdBy']?.toString() ?? '',
       assignedTo: parseIds(json['assignedTo']),

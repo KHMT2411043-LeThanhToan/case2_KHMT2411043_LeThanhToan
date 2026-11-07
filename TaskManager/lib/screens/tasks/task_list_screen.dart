@@ -25,7 +25,11 @@ class _TaskListScreenState extends State<TaskListScreen> {
   String? _selectedStatus;
   String? _selectedPriority;
   String? _selectedAssigneeId;
+// Tiêu chí sắp xếp
+  String _sortBy = 'createdAt';
 
+// Thứ tự sắp xếp: true = tăng dần
+  bool _ascending = false;
   final TextEditingController _searchController =
   TextEditingController();
 
@@ -134,7 +138,36 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
     await _tasksFuture;
   }
+  void _sortTasks(List<Task> tasks) {
+    tasks.sort((a, b) {
+      int result = 0;
 
+      if (_sortBy == 'dueDate') {
+        if (a.dueDate == null && b.dueDate == null) return 0;
+        if (a.dueDate == null) return 1;
+        if (b.dueDate == null) return -1;
+
+        result = a.dueDate!.compareTo(b.dueDate!);
+      } else if (_sortBy == 'priority') {
+        const priorityOrder = {
+          'low': 1,
+          'medium': 2,
+          'high': 3,
+        };
+
+        result = (priorityOrder[a.priority] ?? 2)
+            .compareTo(priorityOrder[b.priority] ?? 2);
+      } else {
+        if (a.createdAt == null && b.createdAt == null) return 0;
+        if (a.createdAt == null) return 1;
+        if (b.createdAt == null) return -1;
+
+        result = a.createdAt!.compareTo(b.createdAt!);
+      }
+
+      return _ascending ? result : -result;
+    });
+  }
   Future<void> _openCreateTaskScreen() async {
     final result = await Navigator.push<bool>(
       context,
@@ -457,7 +490,118 @@ class _TaskListScreenState extends State<TaskListScreen> {
       },
     );
   }
+  // Mở bảng sắp xếp công việc
+  Future<void> _openSortSheet() async {
+    String draftSortBy = _sortBy;
+    bool draftAscending = _ascending;
 
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Sắp xếp công việc',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    DropdownButtonFormField<String>(
+                      initialValue: draftSortBy,
+                      decoration: const InputDecoration(
+                        labelText: 'Sắp xếp theo',
+                        prefixIcon: Icon(Icons.sort),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'dueDate',
+                          child: Text('Hạn hoàn thành'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'priority',
+                          child: Text('Mức độ ưu tiên'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'createdAt',
+                          child: Text('Thời gian tạo'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setModalState(() {
+                            draftSortBy = value;
+                          });
+                        }
+                      },
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    DropdownButtonFormField<bool>(
+                      initialValue: draftAscending,
+                      decoration: const InputDecoration(
+                        labelText: 'Thứ tự',
+                        prefixIcon: Icon(Icons.swap_vert),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: true,
+                          child: Text('Tăng dần'),
+                        ),
+                        DropdownMenuItem(
+                          value: false,
+                          child: Text('Giảm dần'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setModalState(() {
+                            draftAscending = value;
+                          });
+                        }
+                      },
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _sortBy = draftSortBy;
+                            _ascending = draftAscending;
+                          });
+
+                          Navigator.pop(sheetContext);
+                        },
+                        icon: const Icon(Icons.check),
+                        label: const Text('Áp dụng sắp xếp'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -515,17 +659,35 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
                 const SizedBox(width: 8),
 
+                // Nút lọc công việc
                 IconButton(
                   onPressed: _openFilterSheet,
                   tooltip: 'Bộ lọc công việc',
                   icon: const Icon(
                     Icons.filter_list,
-                    size: 30,
+                    size: 28,
                   ),
                   style: IconButton.styleFrom(
                     backgroundColor: Colors.blue.shade50,
                     foregroundColor: Colors.blue.shade800,
-                    fixedSize: const Size(52, 52),
+                    fixedSize: const Size(48, 52),
+                  ),
+                ),
+
+                const SizedBox(width: 4),
+
+// Nút sắp xếp công việc
+                IconButton(
+                  onPressed: _openSortSheet,
+                  tooltip: 'Sắp xếp công việc',
+                  icon: const Icon(
+                    Icons.sort,
+                    size: 28,
+                  ),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.green.shade50,
+                    foregroundColor: Colors.green.shade800,
+                    fixedSize: const Size(48, 52),
                   ),
                 ),
               ],
@@ -629,7 +791,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
                       matchesPriority &&
                       matchesAssignee;
                 }).toList();
-
+                // Sắp xếp danh sách công việc
+                _sortTasks(tasks);
                 // Hiển thị danh sách kết quả
                 return tasks.isEmpty
                     ? RefreshIndicator(
