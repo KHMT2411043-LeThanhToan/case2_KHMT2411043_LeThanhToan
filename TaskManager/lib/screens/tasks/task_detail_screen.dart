@@ -28,13 +28,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   bool _isLoadingUser = true;
   bool _isDeleting = false;
 
-  // Kiem tra nguoi tao cong viec
   bool get _isCreator {
     return _currentUserId != null &&
         _task.createdBy == _currentUserId;
   }
 
-  // Kiem tra nguoi duoc chia se co quyen Editor
   bool get _isEditor {
     if (_currentUserId == null) return false;
 
@@ -44,12 +42,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     });
   }
 
-  // Creator va Editor duoc phep sua
   bool get _canEdit {
     return _isCreator || _isEditor;
   }
 
-  // Chi Creator duoc phep xoa
   bool get _canDelete {
     return _isCreator;
   }
@@ -61,7 +57,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     _loadCurrentUser();
   }
 
-  // Lay ID nguoi dung dang dang nhap
   Future<void> _loadCurrentUser() async {
     final userId = await _authService.getCurrentUserId();
 
@@ -191,7 +186,70 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  // Mo man hinh chinh sua cong viec
+  Widget _buildPersonTile({
+    required String name,
+    required String email,
+    String? role,
+    IconData icon = Icons.person_outline,
+  }) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: CircleAvatar(
+          child: Icon(icon),
+        ),
+        title: Text(
+          name.isEmpty ? 'Chưa có tên' : name,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (email.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(email),
+            ],
+            if (role != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                role,
+                style: const TextStyle(
+                  color: Colors.blue,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ],
+        ),
+        isThreeLine: email.isNotEmpty && role != null,
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        top: 8,
+        bottom: 10,
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.blueGrey),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _openEditScreen() async {
     final updatedTask = await Navigator.push<Task>(
       context,
@@ -209,7 +267,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     }
   }
 
-  // Xac nhan va xoa cong viec
   Future<void> _deleteTask() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -317,7 +374,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      // Trang thai cong viec
                       Row(
                         children: [
                           Icon(
@@ -337,7 +393,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
                       const SizedBox(height: 12),
 
-                      // Muc do uu tien
                       Row(
                         children: [
                           Icon(
@@ -391,29 +446,90 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 Icons.person_outline,
               ),
 
-              _buildInfo(
+              // Người phụ trách chính
+              _buildSectionTitle(
+                'Người phụ trách chính',
+                Icons.star_outline,
+              ),
+
+              if (_task.primaryAssignee != null)
+                _buildPersonTile(
+                  name: _task.primaryAssignee!.fullName,
+                  email: _task.primaryAssignee!.email,
+                  role: 'Người phụ trách chính',
+                  icon: Icons.star,
+                )
+              else
+                _buildInfo(
+                  'Người phụ trách chính',
+                  'Chưa chọn người phụ trách chính',
+                  Icons.star_outline,
+                ),
+
+              // Danh sách người được giao
+              _buildSectionTitle(
                 'Người được giao',
-                _task.assignedTo.isEmpty
-                    ? 'Chưa giao cho ai'
-                    : _task.assignedTo.join('\n'),
                 Icons.assignment_ind_outlined,
               ),
 
+              if (_task.assignees.isEmpty)
+                _buildInfo(
+                  'Người được giao',
+                  'Chưa giao cho ai',
+                  Icons.assignment_ind_outlined,
+                )
+              else
+                ..._task.assignees.map((person) {
+                  final isPrimary =
+                      _task.primaryAssignee?.id == person.id;
+
+                  return _buildPersonTile(
+                    name: person.fullName,
+                    email: person.email,
+                    role: isPrimary ? 'Người phụ trách chính' : 'Người được giao',
+                    icon: isPrimary
+                        ? Icons.star
+                        : Icons.assignment_ind_outlined,
+                  );
+                }),
+
               _buildInfo(
-                'Người đã nhận',
+                'Người đã nhận (ID)',
                 _task.acceptedBy.isEmpty
                     ? 'Chưa có ai nhận'
                     : _task.acceptedBy.join('\n'),
                 Icons.how_to_reg_outlined,
               ),
 
-              _buildInfo(
+              // Danh sách người được chia sẻ
+              _buildSectionTitle(
                 'Người được chia sẻ',
-                _task.sharedWith.isEmpty
-                    ? 'Chưa chia sẻ với ai'
-                    : _task.sharedWith.join('\n'),
                 Icons.share_outlined,
               ),
+
+              if (_task.sharedUsers.isEmpty)
+                _buildInfo(
+                  'Người được chia sẻ',
+                  'Chưa chia sẻ với ai',
+                  Icons.share_outlined,
+                )
+              else
+                ..._task.sharedUsers.map((person) {
+                  final share = _task.sharedPermissions
+                      .where((item) => item.userId == person.id)
+                      .firstOrNull;
+
+                  final permission = share?.permission ?? 'viewer';
+
+                  return _buildPersonTile(
+                    name: person.fullName,
+                    email: person.email,
+                    role: permission == 'editor'
+                        ? 'Quyền: Editor - Được phép chỉnh sửa'
+                        : 'Quyền: Viewer - Chỉ được xem',
+                    icon: Icons.share,
+                  );
+                }),
             ],
           ),
 

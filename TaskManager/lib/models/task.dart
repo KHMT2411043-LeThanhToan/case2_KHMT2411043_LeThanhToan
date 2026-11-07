@@ -67,6 +67,7 @@ class Task {
   final TaskAssignee? primaryAssignee;
   final List<String> acceptedBy;
   final List<String> sharedWith;
+  final List<TaskAssignee> sharedUsers;
   final List<TaskShare> sharedPermissions;
 
   Task({
@@ -84,6 +85,7 @@ class Task {
     this.primaryAssignee,
     this.acceptedBy = const [],
     this.sharedWith = const [],
+    this.sharedUsers = const [],
     this.sharedPermissions = const [],
   });
 
@@ -139,6 +141,13 @@ class Task {
 
       acceptedBy: parseIds(json['acceptedBy']),
       sharedWith: parseIds(json['sharedWith']),
+
+      sharedUsers: json['sharedWith'] is List
+          ? (json['sharedWith'] as List)
+          .whereType<Map<String, dynamic>>()
+          .map((item) => TaskAssignee.fromJson(item))
+          .toList()
+          : [],
 
       // Nguoi duoc chia se cu chua co quyen mac dinh la viewer
       sharedPermissions: json['sharedPermissions'] is List
