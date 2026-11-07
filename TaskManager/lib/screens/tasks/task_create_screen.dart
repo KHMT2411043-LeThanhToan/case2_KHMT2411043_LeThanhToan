@@ -15,13 +15,16 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _searchController = TextEditingController();
+  final _shareSearchController = TextEditingController();
 
   final TaskService _taskService = TaskService();
   final UserService _userService = UserService();
 
   final List<Map<String, dynamic>> _selectedAssignees = [];
+  final List<Map<String, dynamic>> _selectedSharedUsers = [];
 
   List<Map<String, dynamic>> _searchResults = [];
+  List<Map<String, dynamic>> _shareSearchResults = [];
 
   String _priority = 'medium';
   String? _primaryAssigneeId;
@@ -30,8 +33,10 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
   DateTime? _dueDate;
 
   bool _isSearching = false;
+  bool _isSearchingSharedUsers = false;
   bool _isCreating = false;
 
+  // Tìm kiếm người được giao công việc
   Future<void> _searchUsers(String keyword) async {
     if (keyword.trim().isEmpty) {
       setState(() {
@@ -52,9 +57,13 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
       setState(() {
         _searchResults = users.where((user) {
           final id = user['_id']?.toString();
+
           return !_selectedAssignees.any(
                 (selected) => selected['_id']?.toString() == id,
-          );
+          ) &&
+              !_selectedSharedUsers.any(
+                    (selected) => selected['_id']?.toString() == id,
+              );
         }).toList();
       });
     } catch (error) {
@@ -72,6 +81,7 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
     }
   }
 
+  // Thêm người được giao
   void _addAssignee(Map<String, dynamic> user) {
     final userId = user['_id']?.toString();
 
@@ -86,16 +96,15 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
     setState(() {
       _selectedAssignees.add(user);
       _primaryAssigneeId ??= userId;
-
       _searchResults.removeWhere(
             (item) => item['_id']?.toString() == userId,
       );
-
       _searchController.clear();
       _searchResults = [];
     });
   }
 
+  // Xóa người được giao
   void _removeAssignee(String userId) {
     setState(() {
       _selectedAssignees.removeWhere(
@@ -110,6 +119,93 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
     });
   }
 
+  // Tìm kiếm người được chia sẻ công việc
+  Future<void> _searchSharedUsers(String keyword) async {
+    if (keyword.trim().isEmpty) {
+      setState(() {
+        _shareSearchResults = [];
+        _isSearchingSharedUsers = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isSearchingSharedUsers = true;
+    });
+
+    try {
+      final users = await _userService.searchUsers(keyword);
+
+      if (!mounted) return;
+
+      setState(() {
+        _shareSearchResults = users.where((user) {
+          final id = user['_id']?.toString();
+
+          final isAssignee = _selectedAssignees.any(
+                (item) => item['_id']?.toString() == id,
+          );
+
+          final isAlreadyShared = _selectedSharedUsers.any(
+                (item) => item['_id']?.toString() == id,
+          );
+
+          return !isAssignee && !isAlreadyShared;
+        }).toList();
+
+        _isSearchingSharedUsers = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _isSearchingSharedUsers = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    }
+  }
+
+  // Thêm người được chia sẻ
+  void _addSharedUser(Map<String, dynamic> user) {
+    final userId = user['_id']?.toString();
+
+    if (userId == null || userId.isEmpty) return;
+
+    if (_selectedSharedUsers.any(
+          (item) => item['_id']?.toString() == userId,
+    )) {
+      return;
+    }
+
+    if (_selectedAssignees.any(
+          (item) => item['_id']?.toString() == userId,
+    )) {
+      return;
+    }
+
+    setState(() {
+      _selectedSharedUsers.add(user);
+      _shareSearchResults.removeWhere(
+            (item) => item['_id']?.toString() == userId,
+      );
+      _shareSearchController.clear();
+      _shareSearchResults = [];
+    });
+  }
+
+  // Xóa người được chia sẻ
+  void _removeSharedUser(String userId) {
+    setState(() {
+      _selectedSharedUsers.removeWhere(
+            (user) => user['_id']?.toString() == userId,
+      );
+    });
+  }
+
+  // Chọn ngày
   Future<void> _selectDate(bool isStartDate) async {
     final selectedDate = await showDatePicker(
       context: context,
@@ -131,6 +227,7 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
     });
   }
 
+  // Tạo công việc
   Future<void> _createTask() async {
     final title = _titleController.text.trim();
 
@@ -158,6 +255,9 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
             .map((user) => user['_id'].toString())
             .toList(),
         primaryAssigneeId: _primaryAssigneeId,
+        sharedWith: _selectedSharedUsers
+            .map((user) => user['_id'].toString())
+            .toList(),
       );
 
       if (!mounted) return;
@@ -199,6 +299,7 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
     _titleController.dispose();
     _descriptionController.dispose();
     _searchController.dispose();
+    _shareSearchController.dispose();
     super.dispose();
   }
 
@@ -299,6 +400,7 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
 
             const Divider(height: 32),
 
+            // Phần giao công việc
             const Text(
               'Giao công việc cho người khác',
               style: TextStyle(
@@ -414,6 +516,102 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
                   });
                 },
               ),
+            ],
+
+            const Divider(height: 32),
+
+            // Phần chia sẻ công việc
+            const Text(
+              'Chia sẻ công việc để xem',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            const Text(
+              'Những người được chia sẻ có thể xem công việc.',
+              style: TextStyle(color: Colors.grey),
+            ),
+
+            const SizedBox(height: 12),
+
+            TextField(
+              controller: _shareSearchController,
+              decoration: InputDecoration(
+                labelText: 'Tìm người muốn chia sẻ',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.people_outline),
+                suffixIcon: _isSearchingSharedUsers
+                    ? const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  ),
+                )
+                    : null,
+              ),
+              onChanged: _searchSharedUsers,
+            ),
+
+            if (_shareSearchResults.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: _shareSearchResults.map((user) {
+                    return ListTile(
+                      leading: const CircleAvatar(
+                        child: Icon(Icons.person_outline),
+                      ),
+                      title: Text(user['fullName'] ?? 'Không có tên'),
+                      subtitle: Text(user['email'] ?? ''),
+                      trailing: const Icon(Icons.add_circle_outline),
+                      onTap: () => _addSharedUser(user),
+                    );
+                  }).toList(),
+                ),
+              ),
+
+            const SizedBox(height: 12),
+
+            if (_selectedSharedUsers.isNotEmpty) ...[
+              const Text(
+                'Danh sách người được chia sẻ',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+
+              const SizedBox(height: 8),
+
+              ..._selectedSharedUsers.map((user) {
+                final userId = user['_id'].toString();
+
+                return Card(
+                  child: ListTile(
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.visibility_outlined),
+                    ),
+                    title: Text(user['fullName'] ?? 'Không có tên'),
+                    subtitle: Text(user['email'] ?? ''),
+                    trailing: IconButton(
+                      icon: const Icon(
+                        Icons.remove_circle_outline,
+                        color: Colors.red,
+                      ),
+                      onPressed: () => _removeSharedUser(userId),
+                    ),
+                  ),
+                );
+              }),
             ],
 
             const SizedBox(height: 28),

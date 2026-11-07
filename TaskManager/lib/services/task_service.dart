@@ -51,6 +51,7 @@ class TaskService {
     DateTime? dueDate,
     List<String> assignedTo = const [],
     String? primaryAssigneeId,
+    List<String> sharedWith = const [],
   }) async {
     final token = await AuthService().getToken();
 
@@ -72,6 +73,7 @@ class TaskService {
         'dueDate': dueDate?.toIso8601String(),
         'assignedTo': assignedTo,
         'primaryAssigneeId': primaryAssigneeId,
+        'sharedWith': sharedWith,
       }),
     );
 
