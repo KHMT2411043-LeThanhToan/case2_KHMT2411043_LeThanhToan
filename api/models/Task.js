@@ -60,6 +60,13 @@ const taskSchema = new mongoose.Schema(
             ref: 'User'
         }],
 
+        // Nguoi phu trach chinh
+        primaryAssigneeId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            default: null
+        },
+
         // Nguoi da nhan cong viec
         acceptedBy: [{
             type: mongoose.Schema.Types.ObjectId,

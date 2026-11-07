@@ -1,89 +1,159 @@
-
 import 'package:flutter/material.dart';
 
 import '../../services/task_service.dart';
+import '../../services/user_service.dart';
 
 class TaskCreateScreen extends StatefulWidget {
   const TaskCreateScreen({super.key});
 
   @override
-  State<TaskCreateScreen> createState() =>
-      _TaskCreateScreenState();
+  State<TaskCreateScreen> createState() => _TaskCreateScreenState();
 }
 
 class _TaskCreateScreenState extends State<TaskCreateScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _searchController = TextEditingController();
 
   final TaskService _taskService = TaskService();
+  final UserService _userService = UserService();
 
-  String _selectedPriority = 'medium';
+  final List<Map<String, dynamic>> _selectedAssignees = [];
+  List<Map<String, dynamic>> _searchResults = [];
 
-// Ngay bat dau va han hoan thanh
+  String _priority = 'medium';
+
   DateTime? _startDate;
   DateTime? _dueDate;
 
-  bool _isLoading = false;
+  bool _isSearching = false;
+  bool _isCreating = false;
 
-// Ham mo lich chon ngay
-  Future<void> _selectDate({required bool isStartDate}) async {
-    final DateTime initialDate = isStartDate
-        ? (_startDate ?? DateTime.now())
-        : (_dueDate ?? _startDate ?? DateTime.now());
+  Future<void> _searchUsers(String keyword) async {
+    if (keyword.trim().isEmpty) {
+      setState(() {
+        _searchResults = [];
+      });
+      return;
+    }
 
-    final DateTime? pickedDate = await showDatePicker(
+    setState(() {
+      _isSearching = true;
+    });
+
+    try {
+      final users = await _userService.searchUsers(keyword);
+
+      if (!mounted) return;
+
+      setState(() {
+        _searchResults = users.where((user) {
+          final id = user['_id']?.toString();
+          return !_selectedAssignees.any(
+                (selected) => selected['_id']?.toString() == id,
+          );
+        }).toList();
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSearching = false;
+        });
+      }
+    }
+  }
+
+  void _addAssignee(Map<String, dynamic> user) {
+    final userId = user['_id']?.toString();
+
+    if (userId == null || userId.isEmpty) return;
+
+    if (_selectedAssignees.any(
+          (item) => item['_id']?.toString() == userId,
+    )) {
+      return;
+    }
+
+    setState(() {
+      _selectedAssignees.add(user);
+
+      _searchResults.removeWhere(
+            (item) => item['_id']?.toString() == userId,
+      );
+
+      _searchController.clear();
+      _searchResults = [];
+    });
+  }
+
+  void _removeAssignee(String userId) {
+    setState(() {
+      _selectedAssignees.removeWhere(
+            (user) => user['_id']?.toString() == userId,
+      );
+    });
+  }
+
+  Future<void> _selectDate(bool isStartDate) async {
+    final selectedDate = await showDatePicker(
       context: context,
-      initialDate: initialDate,
-      firstDate: isStartDate
-          ? DateTime(2000)
-          : (_startDate ?? DateTime(2000)),
+      initialDate: isStartDate
+          ? (_startDate ?? DateTime.now())
+          : (_dueDate ?? _startDate ?? DateTime.now()),
+      firstDate: DateTime(2020),
       lastDate: DateTime(2100),
-      helpText: isStartDate
-          ? 'Chọn ngày bắt đầu'
-          : 'Chọn hạn hoàn thành',
-      cancelText: 'Hủy',
-      confirmText: 'Chọn',
     );
 
-    if (pickedDate == null || !mounted) return;
+    if (selectedDate == null || !mounted) return;
 
     setState(() {
       if (isStartDate) {
-        _startDate = pickedDate;
-
-        if (_dueDate != null && _dueDate!.isBefore(pickedDate)) {
-          _dueDate = null;
-        }
+        _startDate = selectedDate;
       } else {
-        _dueDate = pickedDate;
+        _dueDate = selectedDate;
       }
     });
   }
 
   Future<void> _createTask() async {
-    if (!_formKey.currentState!.validate()) {
+    final title = _titleController.text.trim();
+
+    if (title.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng nhập tên công việc'),
+        ),
+      );
       return;
     }
 
     setState(() {
-      _isLoading = true;
+      _isCreating = true;
     });
 
     try {
       await _taskService.createTask(
-        title: _titleController.text.trim(),
+        title: title,
         description: _descriptionController.text.trim(),
-        priority: _selectedPriority,
+        priority: _priority,
         startDate: _startDate,
         dueDate: _dueDate,
+        assignedTo: _selectedAssignees
+            .map((user) => user['_id'].toString())
+            .toList(),
       );
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Tạo công việc thành công!'),
+          content: Text('Tạo công việc thành công'),
         ),
       );
 
@@ -93,22 +163,31 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Lỗi: $error'),
+          content: Text('Không thể tạo công việc: $error'),
         ),
       );
     } finally {
       if (mounted) {
         setState(() {
-          _isLoading = false;
+          _isCreating = false;
         });
       }
     }
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'Chưa chọn';
+
+    return '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/'
+        '${date.year}';
   }
 
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -118,127 +197,195 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
       appBar: AppBar(
         title: const Text('Tạo công việc'),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Tiêu đề công việc',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Vui lòng nhập tiêu đề công việc.';
-                  }
-                  return null;
-                },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: _titleController,
+              decoration: const InputDecoration(
+                labelText: 'Tên công việc *',
+                border: OutlineInputBorder(),
               ),
+            ),
 
-              const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-              TextFormField(
-                controller: _descriptionController,
-                maxLines: 4,
-                decoration: const InputDecoration(
-                  labelText: 'Mô tả công việc',
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true,
-                ),
+            TextField(
+              controller: _descriptionController,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Mô tả',
+                border: OutlineInputBorder(),
               ),
+            ),
 
-              const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
-              // Chon muc do uu tien
-              DropdownButtonFormField<String>(
-                initialValue: _selectedPriority,
-                decoration: const InputDecoration(
-                  labelText: 'Mức độ ưu tiên',
-                  border: OutlineInputBorder(),
+            const Text(
+              'Mức độ ưu tiên',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+
+            const SizedBox(height: 8),
+
+            DropdownButtonFormField<String>(
+              initialValue: _priority,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: 'low',
+                  child: Text('Thấp'),
                 ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'low',
-                    child: Text('Thấp'),
+                DropdownMenuItem(
+                  value: 'medium',
+                  child: Text('Trung bình'),
+                ),
+                DropdownMenuItem(
+                  value: 'high',
+                  child: Text('Cao'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _priority = value;
+                  });
+                }
+              },
+            ),
+
+            const SizedBox(height: 20),
+
+            const Text(
+              'Ngày bắt đầu',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(_formatDate(_startDate)),
+              trailing: const Icon(Icons.calendar_month),
+              onTap: () => _selectDate(true),
+            ),
+
+            const Divider(),
+
+            const Text(
+              'Hạn hoàn thành',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(_formatDate(_dueDate)),
+              trailing: const Icon(Icons.calendar_month),
+              onTap: () => _selectDate(false),
+            ),
+
+            const Divider(height: 32),
+
+            const Text(
+              'Giao công việc cho người khác',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: 'Tìm theo tên hoặc email',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _isSearching
+                    ? const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
                   ),
-                  DropdownMenuItem(
-                    value: 'medium',
-                    child: Text('Trung bình'),
+                )
+                    : null,
+              ),
+              onChanged: _searchUsers,
+            ),
+
+            if (_searchResults.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: _searchResults.map((user) {
+                    return ListTile(
+                      leading: const CircleAvatar(
+                        child: Icon(Icons.person),
+                      ),
+                      title: Text(user['fullName'] ?? 'Không có tên'),
+                      subtitle: Text(user['email'] ?? ''),
+                      trailing: const Icon(Icons.add_circle_outline),
+                      onTap: () => _addAssignee(user),
+                    );
+                  }).toList(),
+                ),
+              ),
+
+            const SizedBox(height: 16),
+
+            if (_selectedAssignees.isNotEmpty) ...[
+              const Text(
+                'Danh sách người được giao',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+
+              const SizedBox(height: 8),
+
+              ..._selectedAssignees.map((user) {
+                final userId = user['_id'].toString();
+
+                return Card(
+                  child: ListTile(
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.person),
+                    ),
+                    title: Text(user['fullName'] ?? 'Không có tên'),
+                    subtitle: Text(user['email'] ?? ''),
+                    trailing: IconButton(
+                      icon: const Icon(
+                        Icons.remove_circle_outline,
+                        color: Colors.red,
+                      ),
+                      onPressed: () => _removeAssignee(userId),
+                    ),
                   ),
-                  DropdownMenuItem(
-                    value: 'high',
-                    child: Text('Cao'),
-                  ),
-                ],
-                onChanged: _isLoading
-                    ? null
-                    : (value) {
-                        if (value != null) {
-                          setState(() {
-                            _selectedPriority = value;
-                          });
-                        }
-                      },
-              ),
-
-              const SizedBox(height: 16),
-
-// Chon ngay bat dau
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.calendar_today),
-                title: const Text('Ngày bắt đầu'),
-                subtitle: Text(
-                  _startDate == null
-                      ? 'Chưa chọn ngày'
-                      : '${_startDate!.day.toString().padLeft(2, '0')}/'
-                      '${_startDate!.month.toString().padLeft(2, '0')}/'
-                      '${_startDate!.year}',
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.edit_calendar),
-                  onPressed: _isLoading
-                      ? null
-                      : () => _selectDate(isStartDate: true),
-                ),
-              ),
-
-// Chon han hoan thanh
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.event),
-                title: const Text('Hạn hoàn thành'),
-                subtitle: Text(
-                  _dueDate == null
-                      ? 'Chưa chọn ngày'
-                      : '${_dueDate!.day.toString().padLeft(2, '0')}/'
-                      '${_dueDate!.month.toString().padLeft(2, '0')}/'
-                      '${_dueDate!.year}',
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.edit_calendar),
-                  onPressed: _isLoading
-                      ? null
-                      : () => _selectDate(isStartDate: false),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _createTask,
-                  child: _isLoading
-                      ? const CircularProgressIndicator()
-                      : const Text('Tạo công việc'),
-                ),
-              ),
+                );
+              }),
             ],
-          ),
+
+            const SizedBox(height: 28),
+
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isCreating ? null : _createTask,
+                child: _isCreating
+                    ? const CircularProgressIndicator()
+                    : const Text('Tạo công việc'),
+              ),
+            ),
+          ],
         ),
       ),
     );

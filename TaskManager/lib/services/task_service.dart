@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
@@ -49,6 +48,7 @@ class TaskService {
     String priority = 'medium',
     DateTime? startDate,
     DateTime? dueDate,
+    List<String> assignedTo = const [],
   }) async {
     final token = await AuthService().getToken();
 
@@ -68,6 +68,7 @@ class TaskService {
         'priority': priority,
         'startDate': startDate?.toIso8601String(),
         'dueDate': dueDate?.toIso8601String(),
+        'assignedTo': assignedTo,
       }),
     );
 
@@ -113,8 +114,10 @@ class TaskService {
     if (priority != null) {
       requestData['priority'] = priority;
     }
+
     requestData['startDate'] = startDate?.toIso8601String();
     requestData['dueDate'] = dueDate?.toIso8601String();
+
     final response = await http.put(
       Uri.parse('$baseUrl/$taskId'),
       headers: {
@@ -130,7 +133,8 @@ class TaskService {
       return Task.fromJson(data['task'] as Map<String, dynamic>);
     }
 
-    final Map<String, dynamic> errorData = jsonDecode(response.body);
+    final Map<String, dynamic> errorData =
+    jsonDecode(response.body);
 
     throw Exception(
       errorData['message'] ?? 'Khong the cap nhat cong viec.',
