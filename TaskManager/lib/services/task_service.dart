@@ -174,4 +174,69 @@ class TaskService {
       errorData['message'] ?? 'Khong the xoa cong viec.',
     );
   }
+
+  // Thay doi quyen chia se cong viec
+  Future<void> updateSharePermission({
+    required String taskId,
+    required String userId,
+    required String permission,
+  }) async {
+    final token = await AuthService().getToken();
+
+    if (token == null || token.isEmpty) {
+      throw Exception('Vui long dang nhap lai.');
+    }
+
+    final response = await http.put(
+      Uri.parse('$baseUrl/$taskId/shares/$userId'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'permission': permission,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return;
+    }
+
+    final Map<String, dynamic> errorData = jsonDecode(response.body);
+
+    throw Exception(
+      errorData['message'] ?? 'Khong the thay doi quyen chia se.',
+    );
+  }
+
+// Thu hoi quyen chia se cong viec
+  Future<void> revokeSharePermission({
+    required String taskId,
+    required String userId,
+  }) async {
+    final token = await AuthService().getToken();
+
+    if (token == null || token.isEmpty) {
+      throw Exception('Vui long dang nhap lai.');
+    }
+
+    final response = await http.delete(
+      Uri.parse('$baseUrl/$taskId/shares/$userId'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return;
+    }
+
+    final Map<String, dynamic> errorData = jsonDecode(response.body);
+
+    throw Exception(
+      errorData['message'] ?? 'Khong the thu hoi quyen chia se.',
+    );
+  }
+
 }

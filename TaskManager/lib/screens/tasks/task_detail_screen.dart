@@ -250,6 +250,183 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
+  // Lay quyen chia se cua mot nguoi dung
+  String _getSharePermission(String userId) {
+    for (final share in _task.sharedPermissions) {
+      if (share.userId == userId) {
+        return share.permission;
+      }
+    }
+
+    return 'viewer';
+  }
+
+  // Tai lai thong tin cong viec sau khi thay doi quyen
+  Future<void> _refreshTask() async {
+    final tasks = await _taskService.fetchTasks();
+
+    final updatedTasks = tasks.where(
+          (task) => task.id == _task.id,
+    );
+
+    if (updatedTasks.isNotEmpty && mounted) {
+      setState(() {
+        _task = updatedTasks.first;
+      });
+    }
+  }
+
+  // Hien thi hop thoai thay doi quyen chia se
+  Future<void> _manageSharePermission(
+      String userId,
+      String userName,
+      ) async {
+    String selectedPermission = _getSharePermission(userId);
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text('Quản lý quyền của $userName'),
+              content: RadioGroup<String>(
+                groupValue: selectedPermission,
+                onChanged: (value) {
+                  setDialogState(() {
+                    selectedPermission = value!;
+                  });
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    RadioListTile<String>(
+                      title: const Text('Viewer'),
+                      subtitle: const Text('Chỉ được xem công việc'),
+                      value: 'viewer',
+                    ),
+                    RadioListTile<String>(
+                      title: const Text('Editor'),
+                      subtitle: const Text('Được xem và chỉnh sửa'),
+                      value: 'editor',
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Hủy'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(
+                      dialogContext,
+                      selectedPermission,
+                    );
+                  },
+                  child: const Text('Lưu'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result == null || !mounted) return;
+
+    try {
+      await _taskService.updateSharePermission(
+        taskId: _task.id,
+        userId: userId,
+        permission: result,
+      );
+
+      await _refreshTask();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Thay đổi quyền thành công'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.toString().replaceFirst('Exception: ', ''),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Thu hoi quyen chia se
+  Future<void> _revokeSharePermission(
+      String userId,
+      String userName,
+      ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Thu hồi quyền chia sẻ'),
+        content: Text(
+          'Bạn có chắc muốn thu hồi quyền chia sẻ của $userName không?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text(
+              'Thu hồi',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await _taskService.revokeSharePermission(
+        taskId: _task.id,
+        userId: userId,
+      );
+
+      await _refreshTask();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Thu hồi quyền chia sẻ thành công'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.toString().replaceFirst('Exception: ', ''),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Future<void> _openEditScreen() async {
     final updatedTask = await Navigator.push<Task>(
       context,
@@ -373,7 +550,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-
                       Row(
                         children: [
                           Icon(
@@ -390,9 +566,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 12),
-
                       Row(
                         children: [
                           Icon(
@@ -446,7 +620,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 Icons.person_outline,
               ),
 
-              // Người phụ trách chính
+              // Nguoi phu trach chinh
               _buildSectionTitle(
                 'Người phụ trách chính',
                 Icons.star_outline,
@@ -466,7 +640,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   Icons.star_outline,
                 ),
 
-              // Danh sách người được giao
+              // Danh sach nguoi duoc giao
               _buildSectionTitle(
                 'Người được giao',
                 Icons.assignment_ind_outlined,
@@ -486,7 +660,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   return _buildPersonTile(
                     name: person.fullName,
                     email: person.email,
-                    role: isPrimary ? 'Người phụ trách chính' : 'Người được giao',
+                    role: isPrimary
+                        ? 'Người phụ trách chính'
+                        : 'Người được giao',
                     icon: isPrimary
                         ? Icons.star
                         : Icons.assignment_ind_outlined,
@@ -501,7 +677,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 Icons.how_to_reg_outlined,
               ),
 
-              // Danh sách người được chia sẻ
+              // Danh sach nguoi duoc chia se
               _buildSectionTitle(
                 'Người được chia sẻ',
                 Icons.share_outlined,
@@ -515,19 +691,92 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 )
               else
                 ..._task.sharedUsers.map((person) {
-                  final share = _task.sharedPermissions
-                      .where((item) => item.userId == person.id)
-                      .firstOrNull;
+                  final permission =
+                  _getSharePermission(person.id);
 
-                  final permission = share?.permission ?? 'viewer';
-
-                  return _buildPersonTile(
-                    name: person.fullName,
-                    email: person.email,
-                    role: permission == 'editor'
-                        ? 'Quyền: Editor - Được phép chỉnh sửa'
-                        : 'Quyền: Viewer - Chỉ được xem',
-                    icon: Icons.share,
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      leading: const CircleAvatar(
+                        child: Icon(Icons.share),
+                      ),
+                      title: Text(
+                        person.fullName.isEmpty
+                            ? 'Chưa có tên'
+                            : person.fullName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (person.email.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(person.email),
+                          ],
+                          const SizedBox(height: 4),
+                          Text(
+                            permission == 'editor'
+                                ? 'Quyền: Editor - Được phép chỉnh sửa'
+                                : 'Quyền: Viewer - Chỉ được xem',
+                            style: const TextStyle(
+                              color: Colors.blue,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      isThreeLine: person.email.isNotEmpty,
+                      trailing: _isCreator
+                          ? PopupMenuButton<String>(
+                        tooltip: 'Quản lý quyền chia sẻ',
+                        onSelected: (value) {
+                          if (value == 'edit') {
+                            _manageSharePermission(
+                              person.id,
+                              person.fullName,
+                            );
+                          } else if (value == 'revoke') {
+                            _revokeSharePermission(
+                              person.id,
+                              person.fullName,
+                            );
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem<String>(
+                            value: 'edit',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit_outlined),
+                                SizedBox(width: 8),
+                                Text('Thay đổi quyền'),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem<String>(
+                            value: 'revoke',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.person_remove_outlined,
+                                  color: Colors.red,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Thu hồi quyền',
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      )
+                          : null,
+                    ),
                   );
                 }),
             ],

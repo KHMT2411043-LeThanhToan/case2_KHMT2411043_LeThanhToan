@@ -470,3 +470,140 @@ router.post('/:id/accept', authenticateToken, async (req, res) => {
 });
 
 module.exports = router;
+
+// PUT /api/tasks/:id/shares/:userId - thay doi quyen chia se
+router.put('/:id/shares/:userId', authenticateToken, async (req, res) => {
+    try {
+        const { id, userId } = req.params;
+        const { permission } = req.body;
+
+        if (!isValidId(id) || !isValidId(userId)) {
+            return res.status(400).json({
+                message: 'ID cong viec hoac nguoi dung khong hop le'
+            });
+        }
+
+        if (!['viewer', 'editor'].includes(permission)) {
+            return res.status(400).json({
+                message: 'Quyen chia se khong hop le'
+            });
+        }
+
+        const task = await Task.findById(id);
+
+        if (!task) {
+            return res.status(404).json({
+                message: 'Khong tim thay cong viec'
+            });
+        }
+
+        // Chi nguoi tao cong viec duoc thay doi quyen
+        if (String(task.createdBy) !== String(req.userId)) {
+            return res.status(403).json({
+                message: 'Chi nguoi tao cong viec duoc thay doi quyen chia se'
+            });
+        }
+
+        const isShared = task.sharedWith.some(
+            user => String(user) === String(userId)
+        );
+
+        if (!isShared) {
+            return res.status(404).json({
+                message: 'Nguoi dung khong duoc chia se cong viec nay'
+            });
+        }
+
+        const share = task.sharedPermissions.find(
+            item => String(item.user) === String(userId)
+        );
+
+        if (share) {
+            share.permission = permission;
+        } else {
+            task.sharedPermissions.push({
+                user: userId,
+                permission
+            });
+        }
+
+        await task.save();
+
+        return res.json({
+            message: 'Thay doi quyen chia se thanh cong',
+            task
+        });
+    } catch (error) {
+        console.error('Loi thay doi quyen chia se:', error);
+
+        return res.status(500).json({
+            message: 'Khong the thay doi quyen chia se'
+        });
+    }
+});
+
+// DELETE /api/tasks/:id/shares/:userId - thu hoi quyen chia se
+router.delete('/:id/shares/:userId', authenticateToken, async (req, res) => {
+    try {
+        const { id, userId } = req.params;
+
+        if (!isValidId(id) || !isValidId(userId)) {
+            return res.status(400).json({
+                message: 'ID cong viec hoac nguoi dung khong hop le'
+            });
+        }
+
+        const task = await Task.findById(id);
+
+        if (!task) {
+            return res.status(404).json({
+                message: 'Khong tim thay cong viec'
+            });
+        }
+
+        // Chi nguoi tao cong viec duoc thu hoi quyen
+        if (String(task.createdBy) !== String(req.userId)) {
+            return res.status(403).json({
+                message: 'Chi nguoi tao cong viec duoc thu hoi quyen chia se'
+            });
+        }
+
+        const isShared = task.sharedWith.some(
+            user => String(user) === String(userId)
+        );
+
+        if (!isShared) {
+            return res.status(404).json({
+                message: 'Nguoi dung khong duoc chia se cong viec nay'
+            });
+        }
+
+        // Xoa khoi danh sach chia se
+        task.sharedWith = task.sharedWith.filter(
+            user => String(user) !== String(userId)
+        );
+
+        // Xoa quyen Viewer/Editor
+        task.sharedPermissions = task.sharedPermissions.filter(
+            item => String(item.user) !== String(userId)
+        );
+
+        // Xoa trang thai chap nhan cua nguoi bi thu hoi quyen
+        task.acceptedBy = task.acceptedBy.filter(
+            user => String(user) !== String(userId)
+        );
+
+        await task.save();
+
+        return res.json({
+            message: 'Thu hoi quyen chia se thanh cong',
+            task
+        });
+    } catch (error) {
+        console.error('Loi thu hoi quyen chia se:', error);
+
+        return res.status(500).json({
+            message: 'Khong the thu hoi quyen chia se'
+        });
+    }
+});
