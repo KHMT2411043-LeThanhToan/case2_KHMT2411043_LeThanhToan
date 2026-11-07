@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../../services/task_service.dart';
@@ -19,9 +20,11 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
   final UserService _userService = UserService();
 
   final List<Map<String, dynamic>> _selectedAssignees = [];
+
   List<Map<String, dynamic>> _searchResults = [];
 
   String _priority = 'medium';
+  String? _primaryAssigneeId;
 
   DateTime? _startDate;
   DateTime? _dueDate;
@@ -82,6 +85,7 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
 
     setState(() {
       _selectedAssignees.add(user);
+      _primaryAssigneeId ??= userId;
 
       _searchResults.removeWhere(
             (item) => item['_id']?.toString() == userId,
@@ -97,6 +101,12 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
       _selectedAssignees.removeWhere(
             (user) => user['_id']?.toString() == userId,
       );
+
+      if (_primaryAssigneeId == userId) {
+        _primaryAssigneeId = _selectedAssignees.isNotEmpty
+            ? _selectedAssignees.first['_id']?.toString()
+            : null;
+      }
     });
   }
 
@@ -147,6 +157,7 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
         assignedTo: _selectedAssignees
             .map((user) => user['_id'].toString())
             .toList(),
+        primaryAssigneeId: _primaryAssigneeId,
       );
 
       if (!mounted) return;
@@ -372,6 +383,37 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
                   ),
                 );
               }),
+
+              const SizedBox(height: 16),
+
+              const Text(
+                'Người phụ trách chính',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+
+              const SizedBox(height: 8),
+
+              DropdownButtonFormField<String>(
+                initialValue: _primaryAssigneeId,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                ),
+                items: _selectedAssignees.map((user) {
+                  return DropdownMenuItem<String>(
+                    value: user['_id'].toString(),
+                    child: Text(
+                      user['fullName'] ?? 'Không có tên',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _primaryAssigneeId = value;
+                  });
+                },
+              ),
             ],
 
             const SizedBox(height: 28),

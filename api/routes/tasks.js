@@ -44,6 +44,7 @@ router.get('/', authenticateToken, async (req, res) => {
 
         const tasks = await Task.find(filter)
             .populate('assignedTo', 'fullName email')
+            .populate('primaryAssigneeId', 'fullName email')
             .sort({ createdAt: -1 });
 
         return res.json(tasks);
@@ -63,6 +64,7 @@ router.post('/', authenticateToken, async (req, res) => {
             title,
             description,
             assignedTo,
+            primaryAssigneeId,
             sharedWith,
             priority,
             startDate,
@@ -137,6 +139,30 @@ if (
             });
         }
 
+        if (
+            primaryAssigneeId !== undefined &&
+            primaryAssigneeId !== null &&
+            (
+                !isValidId(primaryAssigneeId) ||
+                !assigned.some(id => String(id) === String(primaryAssigneeId))
+            )
+        ) {
+            return res.status(400).json({
+                message: 'Nguoi phu trach chinh phai nam trong danh sach nguoi duoc giao'
+            });
+        }
+
+        if (
+            !Array.isArray(assigned) ||
+            !Array.isArray(shared) ||
+            !assigned.every(isValidId) ||
+            !shared.every(isValidId)
+        ) {
+            return res.status(400).json({
+                message: 'Danh sach nguoi dung khong hop le'
+            });
+        }
+
         const task = await Task.create({
             title: title.trim(),
             description: description || '',
@@ -145,6 +171,7 @@ if (
             dueDate: parsedDueDate,
             createdBy: req.userId,
             assignedTo: assigned,
+            primaryAssigneeId: primaryAssigneeId || null,
             acceptedBy: [],
             sharedWith: shared
         });
