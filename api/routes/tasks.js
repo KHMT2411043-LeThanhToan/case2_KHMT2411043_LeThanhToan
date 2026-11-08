@@ -2,8 +2,10 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const Task = require('../models/Task');
+const User = require('../models/User');
+const EmailLog = require('../models/EmailLog');
+const { sendEmail } = require('../services/emailService');
 const authenticateToken = require('../middleware/auth_middleware');
-
 const router = express.Router();
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -221,7 +223,70 @@ if (
             sharedWith: shared,
             sharedPermissions: permissions
         });
+        // Gui email thong bao cho nguoi duoc giao cong viec
+        try {
+            const assignees = await User.find({
+                _id: { $in: assigned }
+            }).select('fullName email');
 
+            const creator = await User.findById(req.userId)
+                .select('fullName');
+
+            for (const assignee of assignees) {
+                if (!assignee.email) {
+                    continue;
+                }
+
+                const subject = `[TaskManager] Ban duoc giao cong viec: ${task.title}`;
+
+                const text = `
+Xin chao ${assignee.fullName},
+
+Ban vua duoc giao mot cong viec moi.
+
+Ten cong viec: ${task.title}
+Mo ta: ${task.description || 'Khong co mo ta'}
+Nguoi giao: ${creator ? creator.fullName : 'TaskManager'}
+
+Vui long dang nhap TaskManager de xem chi tiet.
+
+Tran trong,
+TaskManager
+                `;
+
+                const emailLog = await EmailLog.create({
+                    taskId: task._id,
+                    recipientEmail: assignee.email,
+                    eventType: 'task_assigned',
+                    subject,
+                    status: 'pending'
+                });
+
+                const result = await sendEmail({
+                    to: assignee.email,
+                    subject,
+                    text
+                });
+
+                emailLog.attempts += 1;
+
+                if (result.success) {
+                    emailLog.status = 'sent';
+                    emailLog.sentAt = new Date();
+                    emailLog.errorMessage = null;
+                } else {
+                    emailLog.status = 'failed';
+                    emailLog.errorMessage = result.error;
+                }
+
+                await emailLog.save();
+            }
+        } catch (emailError) {
+            console.error(
+                'Loi xu ly email thong bao:',
+                emailError.message
+            );
+        }
         return res.status(201).json({
             message: 'Tao cong viec thanh cong',
             task
