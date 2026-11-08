@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../models/task.dart';
 import '../../services/auth_service.dart';
 import '../../services/task_service.dart';
+import '../../services/user_service.dart';
 import 'task_edit_screen.dart';
 
 class TaskDetailScreen extends StatefulWidget {
@@ -28,56 +29,40 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   bool _isLoadingUser = true;
   bool _isDeleting = false;
 
-  bool get _isCreator {
-    return _currentUserId != null &&
-        _task.createdBy == _currentUserId;
-  }
+  bool get _isCreator =>
+      _currentUserId != null && _task.createdBy == _currentUserId;
 
   bool get _isEditor {
     if (_currentUserId == null) return false;
 
-    return _task.sharedPermissions.any((share) {
-      return share.userId == _currentUserId &&
-          share.permission == 'editor';
-    });
+    return _task.sharedPermissions.any(
+          (share) =>
+      share.userId == _currentUserId &&
+          share.permission == 'editor',
+    );
   }
 
-  bool get _canEdit {
-    return _isCreator || _isEditor;
-  }
+  bool get _canEdit => _isCreator || _isEditor;
+  bool get _canDelete => _isCreator;
 
-  bool get _canDelete {
-    return _isCreator;
-  }
-// Kiem tra vai tro nguoi dung hien tai
-  bool get _isAssignee {
-    return _currentUserId != null &&
-        _task.assignedTo.contains(_currentUserId);
-  }
+  bool get _isAssignee =>
+      _currentUserId != null &&
+          _task.assignedTo.contains(_currentUserId);
 
-  bool get _isSharedUser {
-    return _currentUserId != null &&
-        _task.sharedWith.contains(_currentUserId);
-  }
+  bool get _isSharedUser =>
+      _currentUserId != null &&
+          _task.sharedWith.contains(_currentUserId);
 
-// Lay tat ca vai tro cua nguoi dung
   List<String> get _currentUserRoles {
     final roles = <String>[];
 
-    if (_isCreator) {
-      roles.add('Creator');
-    }
-
-    if (_isAssignee) {
-      roles.add('Assignee');
-    }
-
-    if (_isSharedUser) {
-      roles.add('Shared User');
-    }
+    if (_isCreator) roles.add('Creator');
+    if (_isAssignee) roles.add('Assignee');
+    if (_isSharedUser) roles.add('Shared User');
 
     return roles;
   }
+
   @override
   void initState() {
     super.initState();
@@ -149,9 +134,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   String _formatDate(DateTime? date) {
-    if (date == null) {
-      return 'Chưa thiết lập';
-    }
+    if (date == null) return 'Chưa thiết lập';
 
     return '${date.day.toString().padLeft(2, '0')}/'
         '${date.month.toString().padLeft(2, '0')}/'
@@ -192,10 +175,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: Icon(
-          icon,
-          color: Colors.blueGrey,
-        ),
+        leading: Icon(icon, color: Colors.blueGrey),
         title: Text(
           label,
           style: const TextStyle(
@@ -223,14 +203,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: CircleAvatar(
-          child: Icon(icon),
-        ),
+        leading: CircleAvatar(child: Icon(icon)),
         title: Text(
           name.isEmpty ? 'Chưa có tên' : name,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -258,10 +234,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   Widget _buildSectionTitle(String title, IconData icon) {
     return Padding(
-      padding: const EdgeInsets.only(
-        top: 8,
-        bottom: 10,
-      ),
+      padding: const EdgeInsets.only(top: 8, bottom: 10),
       child: Row(
         children: [
           Icon(icon, color: Colors.blueGrey),
@@ -277,7 +250,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       ),
     );
   }
-// Hien thi cac vai tro cua nguoi dung hien tai
+
   Widget _buildCurrentUserRoles() {
     if (_currentUserRoles.isEmpty) {
       return const SizedBox.shrink();
@@ -286,10 +259,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle(
-          'Vai trò của bạn',
-          Icons.badge_outlined,
-        ),
+        _buildSectionTitle('Vai trò của bạn', Icons.badge_outlined),
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -317,7 +287,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       ],
     );
   }
-  // Lay quyen chia se cua mot nguoi dung
+
   String _getSharePermission(String userId) {
     for (final share in _task.sharedPermissions) {
       if (share.userId == userId) {
@@ -328,7 +298,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     return 'viewer';
   }
 
-  // Tai lai thong tin cong viec sau khi thay doi quyen
   Future<void> _refreshTask() async {
     final tasks = await _taskService.fetchTasks();
 
@@ -342,7 +311,54 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       });
     }
   }
-// Cap nhat tien do ca nhan
+
+  Future<void> _addSharedUser() async {
+    if (!_isCreator) return;
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AddSharedUserDialog(
+        task: _task,
+        currentUserId: _currentUserId ?? '',
+      ),
+    );
+
+    if (result == null || !mounted) return;
+
+    try {
+      await _taskService.addSharedUser(
+        taskId: _task.id,
+        userId: result['userId'] as String,
+        permission: result['permission'] as String,
+      );
+
+      await _refreshTask();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Mời người chia sẻ thành công. Email đã được xử lý bởi hệ thống.',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.toString().replaceFirst('Exception: ', ''),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Future<void> _updateMyProgress(String status) async {
     if (!_isAssignee) return;
 
@@ -375,7 +391,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       );
     }
   }
-  // Hien thi tien do cua tung nguoi duoc giao
+
   Widget _buildProgressSection() {
     if (_task.assignees.isEmpty) {
       return const SizedBox.shrink();
@@ -472,7 +488,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       ],
     );
   }
-  // Hien thi hop thoai thay doi quyen chia se
+
   Future<void> _manageSharePermission(
       String userId,
       String userName,
@@ -489,8 +505,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               content: RadioGroup<String>(
                 groupValue: selectedPermission,
                 onChanged: (value) {
+                  if (value == null) return;
                   setDialogState(() {
-                    selectedPermission = value!;
+                    selectedPermission = value;
                   });
                 },
                 child: Column(
@@ -516,10 +533,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 ),
                 TextButton(
                   onPressed: () {
-                    Navigator.pop(
-                      dialogContext,
-                      selectedPermission,
-                    );
+                    Navigator.pop(dialogContext, selectedPermission);
                   },
                   child: const Text('Lưu'),
                 ),
@@ -563,7 +577,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     }
   }
 
-  // Thu hoi quyen chia se
   Future<void> _revokeSharePermission(
       String userId,
       String userName,
@@ -643,22 +656,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   Future<void> _deleteTask() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Xóa công việc'),
         content: Text(
           'Bạn có chắc chắn muốn xóa công việc "${_task.title}" không?',
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.pop(context, false);
-            },
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Hủy'),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(context, true);
-            },
+            onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text(
               'Xóa',
               style: TextStyle(color: Colors.red),
@@ -675,9 +684,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     });
 
     try {
-      await _taskService.deleteTask(
-        taskId: _task.id,
-      );
+      await _taskService.deleteTask(taskId: _task.id);
 
       if (!mounted) return;
 
@@ -772,9 +779,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           const SizedBox(width: 8),
                           const Text(
                             'Mức độ ưu tiên: ',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: TextStyle(fontWeight: FontWeight.w500),
                           ),
                           Text(
                             _getPriorityLabel(_task.priority),
@@ -789,41 +794,32 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 12),
-
               _buildCurrentUserRoles(),
-
               _buildInfo(
                 'Mô tả',
                 _task.description,
                 Icons.description_outlined,
               ),
-
               _buildInfo(
                 'Ngày bắt đầu',
                 _formatDate(_task.startDate),
                 Icons.calendar_today,
               ),
-
               _buildInfo(
                 'Hạn hoàn thành',
                 _formatDate(_task.dueDate),
                 Icons.event,
               ),
-
               _buildInfo(
                 'Người tạo (ID)',
                 _task.createdBy,
                 Icons.person_outline,
               ),
-
-              // Nguoi phu trach chinh
               _buildSectionTitle(
                 'Người phụ trách chính',
                 Icons.star_outline,
               ),
-
               if (_task.primaryAssignee != null)
                 _buildPersonTile(
                   name: _task.primaryAssignee!.fullName,
@@ -837,15 +833,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   'Chưa chọn người phụ trách chính',
                   Icons.star_outline,
                 ),
-              // Theo doi tien do tung nguoi
               _buildProgressSection(),
-
-              // Danh sach nguoi duoc giao
               _buildSectionTitle(
                 'Người được giao',
                 Icons.assignment_ind_outlined,
               ),
-
               if (_task.assignees.isEmpty)
                 _buildInfo(
                   'Người được giao',
@@ -868,7 +860,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         : Icons.assignment_ind_outlined,
                   );
                 }),
-
               _buildInfo(
                 'Người đã nhận (ID)',
                 _task.acceptedBy.isEmpty
@@ -876,13 +867,21 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     : _task.acceptedBy.join('\n'),
                 Icons.how_to_reg_outlined,
               ),
-
-              // Danh sach nguoi duoc chia se
               _buildSectionTitle(
                 'Người được chia sẻ',
                 Icons.share_outlined,
               ),
-
+              if (!_isLoadingUser && _isCreator) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _isDeleting ? null : _addSharedUser,
+                    icon: const Icon(Icons.person_add_alt_1),
+                    label: const Text('Thêm người chia sẻ'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
               if (_task.sharedUsers.isEmpty)
                 _buildInfo(
                   'Người được chia sẻ',
@@ -891,8 +890,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 )
               else
                 ..._task.sharedUsers.map((person) {
-                  final permission =
-                  _getSharePermission(person.id);
+                  final permission = _getSharePermission(person.id);
 
                   return Card(
                     margin: const EdgeInsets.only(bottom: 8),
@@ -966,9 +964,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                 SizedBox(width: 8),
                                 Text(
                                   'Thu hồi quyền',
-                                  style: TextStyle(
-                                    color: Colors.red,
-                                  ),
+                                  style: TextStyle(color: Colors.red),
                                 ),
                               ],
                             ),
@@ -981,7 +977,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 }),
             ],
           ),
-
           if (_isDeleting)
             Container(
               color: Colors.black26,
@@ -991,6 +986,277 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             ),
         ],
       ),
+    );
+  }
+}
+
+// Hộp thoại riêng: controller được quản lý theo vòng đời StatefulWidget.
+class AddSharedUserDialog extends StatefulWidget {
+  final Task task;
+  final String currentUserId;
+
+  const AddSharedUserDialog({
+    super.key,
+    required this.task,
+    required this.currentUserId,
+  });
+
+  @override
+  State<AddSharedUserDialog> createState() =>
+      _AddSharedUserDialogState();
+}
+
+class _AddSharedUserDialogState extends State<AddSharedUserDialog> {
+  final TextEditingController _searchController =
+  TextEditingController();
+
+  final UserService _userService = UserService();
+
+  List<Map<String, dynamic>> _searchResults = [];
+  Map<String, dynamic>? _selectedUser;
+
+  String _selectedPermission = 'viewer';
+  bool _isSearching = false;
+  String? _searchError;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _searchUsers() async {
+    final keyword = _searchController.text.trim();
+
+    if (keyword.isEmpty) {
+      setState(() {
+        _searchError = 'Vui lòng nhập tên hoặc email.';
+        _searchResults = [];
+        _selectedUser = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _isSearching = true;
+      _searchError = null;
+      _searchResults = [];
+      _selectedUser = null;
+    });
+
+    try {
+      final users = await _userService.searchUsers(keyword);
+
+      if (!mounted) return;
+
+      final filteredUsers = users.where((user) {
+        final userId =
+        (user['_id'] ?? user['id'] ?? '').toString();
+
+        if (userId.isEmpty) return false;
+        if (userId == widget.currentUserId) return false;
+        if (widget.task.assignedTo.contains(userId)) return false;
+        if (widget.task.sharedWith.contains(userId)) return false;
+
+        return true;
+      }).toList();
+
+      setState(() {
+        _searchResults = filteredUsers;
+        _isSearching = false;
+
+        if (filteredUsers.isEmpty) {
+          _searchError =
+          'Không tìm thấy người dùng phù hợp hoặc người dùng đã tham gia công việc.';
+        }
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _isSearching = false;
+        _searchError =
+            error.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  void _submit() {
+    if (_selectedUser == null) return;
+
+    final userId =
+    (_selectedUser!['_id'] ?? _selectedUser!['id'] ?? '')
+        .toString();
+
+    if (userId.isEmpty) return;
+
+    Navigator.of(context).pop({
+      'userId': userId,
+      'permission': _selectedPermission,
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Mời người chia sẻ'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Công việc: ${widget.task.title}',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  labelText: 'Tên hoặc email người dùng',
+                  hintText: 'Nhập tên hoặc email',
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.search),
+                    onPressed: _isSearching ? null : _searchUsers,
+                  ),
+                ),
+                onSubmitted: (_) => _searchUsers(),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isSearching ? null : _searchUsers,
+                  icon: const Icon(Icons.search),
+                  label: const Text('Tìm kiếm'),
+                ),
+              ),
+              if (_isSearching) ...[
+                const SizedBox(height: 16),
+                const Center(child: CircularProgressIndicator()),
+              ],
+              if (_searchError != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _searchError!,
+                  style: const TextStyle(
+                    color: Colors.red,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+              if (_searchResults.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  'Kết quả tìm kiếm:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                ..._searchResults.map((user) {
+                  final userId =
+                  (user['_id'] ?? user['id'] ?? '').toString();
+                  final fullName =
+                  (user['fullName'] ?? '').toString();
+                  final email = (user['email'] ?? '').toString();
+
+                  final selectedId = _selectedUser == null
+                      ? null
+                      : (_selectedUser!['_id'] ??
+                      _selectedUser!['id'] ??
+                      '')
+                      .toString();
+
+                  final isSelected = selectedId == userId;
+
+                  return Card(
+                    color: isSelected
+                        ? Colors.blue.withValues(alpha: 0.12)
+                        : null,
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        child: Icon(
+                          isSelected
+                              ? Icons.check
+                              : Icons.person_outline,
+                        ),
+                      ),
+                      title: Text(
+                        fullName.isEmpty ? 'Chưa có tên' : fullName,
+                      ),
+                      subtitle: Text(email),
+                      trailing: isSelected
+                          ? const Icon(
+                        Icons.check_circle,
+                        color: Colors.green,
+                      )
+                          : null,
+                      onTap: () {
+                        setState(() {
+                          _selectedUser = user;
+                        });
+                      },
+                    ),
+                  );
+                }),
+              ],
+              if (_selectedUser != null) ...[
+                const SizedBox(height: 16),
+                const Divider(),
+                const Text(
+                  'Người được chọn',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  (_selectedUser!['fullName'] ?? '').toString(),
+                ),
+                Text(
+                  (_selectedUser!['email'] ?? '').toString(),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedPermission,
+                  decoration: const InputDecoration(
+                    labelText: 'Quyền chia sẻ',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'viewer',
+                      child: Text('Viewer - Chỉ được xem'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'editor',
+                      child: Text('Editor - Được chỉnh sửa'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _selectedPermission = value;
+                      });
+                    }
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Hủy'),
+        ),
+        ElevatedButton.icon(
+          onPressed: _selectedUser == null ? null : _submit,
+          icon: const Icon(Icons.person_add),
+          label: const Text('Gửi lời mời'),
+        ),
+      ],
     );
   }
 }

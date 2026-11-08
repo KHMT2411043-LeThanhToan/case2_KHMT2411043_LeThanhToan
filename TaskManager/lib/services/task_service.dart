@@ -175,6 +175,41 @@ class TaskService {
     );
   }
 
+  // Moi nguoi moi chia se cong viec
+  Future<void> addSharedUser({
+    required String taskId,
+    required String userId,
+    String permission = 'viewer',
+  }) async {
+    final token = await AuthService().getToken();
+
+    if (token == null || token.isEmpty) {
+      throw Exception('Vui long dang nhap lai.');
+    }
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/$taskId/shares'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'userId': userId,
+        'permission': permission,
+      }),
+    );
+
+    final Map<String, dynamic> data = jsonDecode(response.body);
+
+    if (response.statusCode == 201) {
+      return;
+    }
+
+    throw Exception(
+      data['message'] ?? 'Khong the moi nguoi chia se cong viec.',
+    );
+  }
+
   // Thay doi quyen chia se cong viec
   Future<void> updateSharePermission({
     required String taskId,
@@ -209,7 +244,7 @@ class TaskService {
     );
   }
 
-// Thu hoi quyen chia se cong viec
+  // Thu hoi quyen chia se cong viec
   Future<void> revokeSharePermission({
     required String taskId,
     required String userId,
@@ -238,6 +273,7 @@ class TaskService {
       errorData['message'] ?? 'Khong the thu hoi quyen chia se.',
     );
   }
+
   // Cap nhat tien do ca nhan
   Future<void> updateMyProgress({
     required String taskId,

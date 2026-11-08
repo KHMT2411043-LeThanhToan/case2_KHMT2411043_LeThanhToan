@@ -287,6 +287,97 @@ TaskManager
                 emailError.message
             );
         }
+
+        // D2.1: Gui email moi nguoi duoc chia se cong viec
+        try {
+            const assignedIds = new Set(
+                assigned.map(id => String(id))
+            );
+
+            const creator = await User.findById(req.userId)
+                .select('fullName');
+
+            const sharedUsers = await User.find({
+                _id: { $in: shared }
+            }).select('fullName email');
+
+            for (const sharedUser of sharedUsers) {
+                // Bo qua neu nguoi dung da duoc giao cong viec
+                // hoac khong co email
+                if (
+                    String(sharedUser._id) === String(req.userId) ||
+                    assignedIds.has(String(sharedUser._id)) ||
+                    !sharedUser.email
+                ) {
+                    continue;
+                }
+
+                const sharePermission = permissions.find(
+                    item =>
+                        String(item.user) === String(sharedUser._id)
+                );
+
+                const permission =
+                    sharePermission?.permission || 'viewer';
+
+                const permissionText =
+                    permission === 'editor'
+                        ? 'Co quyen chinh sua cong viec'
+                        : 'Chi co quyen xem cong viec';
+
+                const subject =
+                    `[TaskManager] Ban duoc moi chia se cong viec: ${task.title}`;
+
+                const text = `
+Xin chao ${sharedUser.fullName},
+
+Ban vua duoc moi tham gia chia se mot cong viec.
+
+Ten cong viec: ${task.title}
+Mo ta: ${task.description || 'Khong co mo ta'}
+Nguoi moi: ${creator ? creator.fullName : 'TaskManager'}
+Quyen cua ban: ${permissionText}
+
+Vui long dang nhap TaskManager de xem chi tiet.
+
+Tran trong,
+TaskManager
+                `;
+
+                const emailLog = await EmailLog.create({
+                    taskId: task._id,
+                    recipientEmail: sharedUser.email,
+                    eventType: 'task_shared',
+                    subject,
+                    status: 'pending'
+                });
+
+                const result = await sendEmail({
+                    to: sharedUser.email,
+                    subject,
+                    text
+                });
+
+                emailLog.attempts += 1;
+
+                if (result.success) {
+                    emailLog.status = 'sent';
+                    emailLog.sentAt = new Date();
+                    emailLog.errorMessage = null;
+                } else {
+                    emailLog.status = 'failed';
+                    emailLog.errorMessage = result.error;
+                }
+
+                await emailLog.save();
+            }
+        } catch (emailError) {
+            console.error(
+                'Loi xu ly email chia se cong viec:',
+                emailError.message
+            );
+        }
+
         return res.status(201).json({
             message: 'Tao cong viec thanh cong',
             task
@@ -619,7 +710,157 @@ router.put('/:id/progress', authenticateToken, async (req, res) => {
     }
 });
 
+// POST /api/tasks/:id/shares - moi nguoi moi chia se cong viec
+router.post('/:id/shares', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userId, permission = 'viewer' } = req.body;
 
+        if (!isValidId(id) || !isValidId(userId)) {
+            return res.status(400).json({
+                message: 'ID cong viec hoac nguoi dung khong hop le'
+            });
+        }
+
+        if (!['viewer', 'editor'].includes(permission)) {
+            return res.status(400).json({
+                message: 'Quyen chia se khong hop le'
+            });
+        }
+
+        const task = await Task.findById(id);
+
+        if (!task) {
+            return res.status(404).json({
+                message: 'Khong tim thay cong viec'
+            });
+        }
+
+        // Chi nguoi tao cong viec duoc moi nguoi chia se
+        if (String(task.createdBy) !== String(req.userId)) {
+            return res.status(403).json({
+                message: 'Chi nguoi tao cong viec duoc moi nguoi chia se'
+            });
+        }
+
+        // Khong cho phep chia se voi chinh minh
+        if (String(userId) === String(req.userId)) {
+            return res.status(400).json({
+                message: 'Khong the chia se cong viec voi chinh minh'
+            });
+        }
+
+        // Khong cho phep them nguoi da duoc giao cong viec
+        const isAssignee = task.assignedTo.some(
+            user => String(user) === String(userId)
+        );
+
+        if (isAssignee) {
+            return res.status(400).json({
+                message: 'Nguoi dung nay da duoc giao cong viec'
+            });
+        }
+
+        // Khong cho phep moi trung
+        const isShared = task.sharedWith.some(
+            user => String(user) === String(userId)
+        );
+
+        if (isShared) {
+            return res.status(409).json({
+                message: 'Nguoi dung da duoc chia se cong viec nay'
+            });
+        }
+
+        const invitedUser = await User.findById(userId)
+            .select('fullName email');
+
+        if (!invitedUser || !invitedUser.email) {
+            return res.status(404).json({
+                message: 'Khong tim thay nguoi dung hoac email'
+            });
+        }
+
+        // Luu nguoi duoc chia se
+        task.sharedWith.push(userId);
+
+        task.sharedPermissions.push({
+            user: userId,
+            permission
+        });
+
+        await task.save();
+
+        // Gui email moi chia se
+        const permissionText = permission === 'editor'
+            ? 'Co quyen chinh sua cong viec'
+            : 'Chi co quyen xem cong viec';
+
+        const creator = await User.findById(req.userId)
+            .select('fullName');
+
+        const subject =
+            `[TaskManager] Ban duoc moi chia se cong viec: ${task.title}`;
+
+        const text = `
+Xin chao ${invitedUser.fullName},
+
+Ban vua duoc moi tham gia chia se mot cong viec.
+
+Ten cong viec: ${task.title}
+Mo ta: ${task.description || 'Khong co mo ta'}
+Nguoi moi: ${creator ? creator.fullName : 'TaskManager'}
+Quyen cua ban: ${permissionText}
+
+Vui long dang nhap TaskManager de xem chi tiet.
+
+Tran trong,
+TaskManager
+        `;
+
+        const emailLog = await EmailLog.create({
+            taskId: task._id,
+            recipientEmail: invitedUser.email,
+            eventType: 'task_shared',
+            subject,
+            status: 'pending'
+        });
+
+        const result = await sendEmail({
+            to: invitedUser.email,
+            subject,
+            text
+        });
+
+        emailLog.attempts += 1;
+
+        if (result.success) {
+            emailLog.status = 'sent';
+            emailLog.sentAt = new Date();
+            emailLog.errorMessage = null;
+        } else {
+            emailLog.status = 'failed';
+            emailLog.errorMessage = result.error;
+        }
+
+        await emailLog.save();
+
+        return res.status(201).json({
+            message: result.success
+                ? 'Moi chia se cong viec thanh cong'
+                : 'Da chia se cong viec nhung gui email that bai',
+            emailStatus: emailLog.status,
+            task
+        });
+
+    } catch (error) {
+        console.error('Loi moi chia se cong viec:', error);
+
+        return res.status(500).json({
+            message: 'Khong the moi chia se cong viec'
+        });
+    }
+});
 // PUT /api/tasks/:id/shares/:userId - thay doi quyen chia se
 router.put('/:id/shares/:userId', authenticateToken, async (req, res) => {
     try {
