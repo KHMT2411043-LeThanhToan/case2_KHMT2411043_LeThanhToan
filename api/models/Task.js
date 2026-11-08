@@ -46,7 +46,27 @@ const taskSchema = new mongoose.Schema(
                 ref: 'User'
             }
         ],
+// Tien do cua tung nguoi duoc giao
+assigneeProgress: [
+    {
+        user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true
+        },
 
+        status: {
+            type: String,
+            enum: ['not_started', 'in_progress', 'completed'],
+            default: 'not_started'
+        },
+
+        updatedAt: {
+            type: Date,
+            default: Date.now
+        }
+    }
+],
         // Danh sach nguoi duoc chia se cong viec
         sharedWith: [
             {

@@ -238,5 +238,36 @@ class TaskService {
       errorData['message'] ?? 'Khong the thu hoi quyen chia se.',
     );
   }
+  // Cap nhat tien do ca nhan
+  Future<void> updateMyProgress({
+    required String taskId,
+    required String status,
+  }) async {
+    final token = await AuthService().getToken();
 
+    if (token == null || token.isEmpty) {
+      throw Exception('Vui long dang nhap lai.');
+    }
+
+    final response = await http.put(
+      Uri.parse('$baseUrl/$taskId/progress'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'status': status,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return;
+    }
+
+    final Map<String, dynamic> errorData = jsonDecode(response.body);
+
+    throw Exception(
+      errorData['message'] ?? 'Khong the cap nhat tien do.',
+    );
+  }
 }

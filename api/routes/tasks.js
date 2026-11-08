@@ -47,6 +47,7 @@ router.get('/', authenticateToken, async (req, res) => {
             .populate('primaryAssigneeId', 'fullName email')
             .populate('sharedWith', 'fullName email')
             .populate('sharedPermissions.user', 'fullName email')
+            .populate('assigneeProgress.user', 'fullName email')
             .sort({ createdAt: -1 });
 
         return res.json(tasks);
@@ -210,6 +211,13 @@ if (
             assignedTo: assigned,
             primaryAssigneeId: primaryAssigneeId || null,
             acceptedBy: [],
+
+            // Khoi tao tien do cho tung nguoi duoc giao
+            assigneeProgress: assigned.map(userId => ({
+                user: userId,
+                status: 'not_started',
+                updatedAt: new Date()
+            })),
             sharedWith: shared,
             sharedPermissions: permissions
         });
@@ -469,7 +477,83 @@ router.post('/:id/accept', authenticateToken, async (req, res) => {
     }
 });
 
-module.exports = router;
+
+// PUT /api/tasks/:id/progress - cap nhat tien do ca nhan
+router.put('/:id/progress', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+        const userId = String(req.userId);
+
+        if (!isValidId(id)) {
+            return res.status(400).json({
+                message: 'ID cong viec khong hop le'
+            });
+        }
+
+        const validStatuses = [
+            'not_started',
+            'in_progress',
+            'completed'
+        ];
+
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({
+                message: 'Trang thai tien do khong hop le'
+            });
+        }
+
+        const task = await Task.findById(id);
+
+        if (!task) {
+            return res.status(404).json({
+                message: 'Khong tim thay cong viec'
+            });
+        }
+
+        // Chi nguoi duoc giao moi duoc cap nhat tien do cua minh
+        const isAssignee = task.assignedTo.some(
+            user => String(user) === userId
+        );
+
+        if (!isAssignee) {
+            return res.status(403).json({
+                message: 'Ban khong phai nguoi duoc giao cong viec nay'
+            });
+        }
+
+        // Tim tien do hien tai cua nguoi dung
+        const progress = task.assigneeProgress.find(
+            item => String(item.user) === userId
+        );
+
+        if (progress) {
+            progress.status = status;
+            progress.updatedAt = new Date();
+        } else {
+            // Tao tien do neu cong viec cu chua co du lieu
+            task.assigneeProgress.push({
+                user: req.userId,
+                status: status,
+                updatedAt: new Date()
+            });
+        }
+
+        await task.save();
+
+        return res.json({
+            message: 'Cap nhat tien do thanh cong',
+            assigneeProgress: task.assigneeProgress
+        });
+    } catch (error) {
+        console.error('Loi cap nhat tien do:', error);
+
+        return res.status(500).json({
+            message: 'Khong the cap nhat tien do'
+        });
+    }
+});
+
 
 // PUT /api/tasks/:id/shares/:userId - thay doi quyen chia se
 router.put('/:id/shares/:userId', authenticateToken, async (req, res) => {
@@ -607,3 +691,4 @@ router.delete('/:id/shares/:userId', authenticateToken, async (req, res) => {
         });
     }
 });
+module.exports = router;

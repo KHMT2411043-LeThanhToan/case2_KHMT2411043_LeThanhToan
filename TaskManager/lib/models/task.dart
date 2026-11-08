@@ -51,7 +51,46 @@ class TaskShare {
     );
   }
 }
+// Model tien do cua tung nguoi duoc giao
+class TaskProgress {
+  final String userId;
+  final String fullName;
+  final String email;
+  final String status;
+  final DateTime? updatedAt;
 
+  const TaskProgress({
+    required this.userId,
+    this.fullName = '',
+    this.email = '',
+    this.status = 'not_started',
+    this.updatedAt,
+  });
+
+  factory TaskProgress.fromJson(Map<String, dynamic> json) {
+    final userData = json['user'];
+
+    if (userData is Map<String, dynamic>) {
+      return TaskProgress(
+        userId: userData['_id']?.toString() ?? '',
+        fullName: userData['fullName']?.toString() ?? '',
+        email: userData['email']?.toString() ?? '',
+        status: json['status']?.toString() ?? 'not_started',
+        updatedAt: json['updatedAt'] != null
+            ? DateTime.tryParse(json['updatedAt'].toString())?.toLocal()
+            : null,
+      );
+    }
+
+    return TaskProgress(
+      userId: userData?.toString() ?? '',
+      status: json['status']?.toString() ?? 'not_started',
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'].toString())?.toLocal()
+          : null,
+    );
+  }
+}
 class Task {
   final String id;
   final String title;
@@ -69,7 +108,7 @@ class Task {
   final List<String> sharedWith;
   final List<TaskAssignee> sharedUsers;
   final List<TaskShare> sharedPermissions;
-
+  final List<TaskProgress> assigneeProgress;
   Task({
     required this.id,
     required this.title,
@@ -87,6 +126,7 @@ class Task {
     this.sharedWith = const [],
     this.sharedUsers = const [],
     this.sharedPermissions = const [],
+    this.assigneeProgress = const [],
   });
 
   factory Task.fromJson(Map<String, dynamic> json) {
@@ -154,6 +194,13 @@ class Task {
           ? (json['sharedPermissions'] as List)
           .whereType<Map<String, dynamic>>()
           .map((item) => TaskShare.fromJson(item))
+          .toList()
+          : [],
+
+      assigneeProgress: json['assigneeProgress'] is List
+          ? (json['assigneeProgress'] as List)
+          .whereType<Map<String, dynamic>>()
+          .map((item) => TaskProgress.fromJson(item))
           .toList()
           : [],
     );

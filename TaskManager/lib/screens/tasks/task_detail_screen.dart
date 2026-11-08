@@ -49,7 +49,35 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   bool get _canDelete {
     return _isCreator;
   }
+// Kiem tra vai tro nguoi dung hien tai
+  bool get _isAssignee {
+    return _currentUserId != null &&
+        _task.assignedTo.contains(_currentUserId);
+  }
 
+  bool get _isSharedUser {
+    return _currentUserId != null &&
+        _task.sharedWith.contains(_currentUserId);
+  }
+
+// Lay tat ca vai tro cua nguoi dung
+  List<String> get _currentUserRoles {
+    final roles = <String>[];
+
+    if (_isCreator) {
+      roles.add('Creator');
+    }
+
+    if (_isAssignee) {
+      roles.add('Assignee');
+    }
+
+    if (_isSharedUser) {
+      roles.add('Shared User');
+    }
+
+    return roles;
+  }
   @override
   void initState() {
     super.initState();
@@ -249,7 +277,46 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       ),
     );
   }
+// Hien thi cac vai tro cua nguoi dung hien tai
+  Widget _buildCurrentUserRoles() {
+    if (_currentUserRoles.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle(
+          'Vai trò của bạn',
+          Icons.badge_outlined,
+        ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _currentUserRoles.map((role) {
+            return Chip(
+              avatar: Icon(
+                role == 'Creator'
+                    ? Icons.create
+                    : role == 'Assignee'
+                    ? Icons.assignment_ind
+                    : Icons.visibility,
+                size: 18,
+              ),
+              label: Text(
+                role == 'Creator'
+                    ? 'Người tạo'
+                    : role == 'Assignee'
+                    ? 'Người được giao'
+                    : 'Người được chia sẻ',
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
   // Lay quyen chia se cua mot nguoi dung
   String _getSharePermission(String userId) {
     for (final share in _task.sharedPermissions) {
@@ -275,7 +342,136 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       });
     }
   }
+// Cap nhat tien do ca nhan
+  Future<void> _updateMyProgress(String status) async {
+    if (!_isAssignee) return;
 
+    try {
+      await _taskService.updateMyProgress(
+        taskId: _task.id,
+        status: status,
+      );
+
+      await _refreshTask();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cập nhật tiến độ thành công'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.toString().replaceFirst('Exception: ', ''),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+  // Hien thi tien do cua tung nguoi duoc giao
+  Widget _buildProgressSection() {
+    if (_task.assignees.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle(
+          'Tiến độ từng người',
+          Icons.trending_up,
+        ),
+        ..._task.assignees.map((person) {
+          final progress = _task.assigneeProgress
+              .where((item) => item.userId == person.id)
+              .toList();
+
+          final status = progress.isNotEmpty
+              ? progress.first.status
+              : 'not_started';
+
+          final isMyProgress =
+              _currentUserId != null &&
+                  person.id == _currentUserId;
+
+          return Card(
+            margin: const EdgeInsets.only(bottom: 10),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    person.fullName.isEmpty
+                        ? person.email
+                        : person.fullName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(
+                        _getStatusIcon(status),
+                        color: _getStatusColor(status),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _getStatusLabel(status),
+                        style: TextStyle(
+                          color: _getStatusColor(status),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (isMyProgress) ...[
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: status,
+                      decoration: const InputDecoration(
+                        labelText: 'Cập nhật tiến độ của bạn',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'not_started',
+                          child: Text('Chưa thực hiện'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'in_progress',
+                          child: Text('Đang thực hiện'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'completed',
+                          child: Text('Đã hoàn thành'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null && value != status) {
+                          _updateMyProgress(value);
+                        }
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        }),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
   // Hien thi hop thoai thay doi quyen chia se
   Future<void> _manageSharePermission(
       String userId,
@@ -596,6 +792,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
               const SizedBox(height: 12),
 
+              _buildCurrentUserRoles(),
+
               _buildInfo(
                 'Mô tả',
                 _task.description,
@@ -639,6 +837,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   'Chưa chọn người phụ trách chính',
                   Icons.star_outline,
                 ),
+              // Theo doi tien do tung nguoi
+              _buildProgressSection(),
 
               // Danh sach nguoi duoc giao
               _buildSectionTitle(
