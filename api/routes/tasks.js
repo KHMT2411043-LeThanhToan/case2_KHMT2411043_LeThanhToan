@@ -468,7 +468,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
                 message: 'Muc do uu tien khong hop le'
             });
         }
-
+        // D4: Luu trang thai cu de kiem tra hoan thanh
+        const oldStatus = task.status;
         // Luu gia tri cu de so sanh
         const oldValues = {
             title: task.title,
@@ -595,6 +596,92 @@ router.put('/:id', authenticateToken, async (req, res) => {
         task.dueDate = parsedDueDate;
 
         await task.save();
+
+        // D4: Gui email khi cong viec chuyen sang trang thai completed
+        if (
+            oldStatus !== 'completed' &&
+            task.status === 'completed'
+        ) {
+            try {
+                const recipientIds = new Set([
+                    ...task.assignedTo.map(user => String(user)),
+                    ...task.sharedWith.map(user => String(user))
+                ]);
+
+                // Khong gui email cho nguoi vua hoan thanh cong viec
+                recipientIds.delete(String(req.userId));
+
+                const recipients = await User.find({
+                    _id: { $in: [...recipientIds] }
+                }).select('fullName email');
+
+                const completer = await User.findById(req.userId)
+                    .select('fullName');
+
+                const subject =
+                    `[TaskManager] Cong viec da hoan thanh: ${task.title}`;
+
+                for (const recipient of recipients) {
+                    if (!recipient.email) {
+                        continue;
+                    }
+
+                    try {
+                        const text = `
+        Xin chao ${recipient.fullName},
+
+        Mot cong viec ban dang tham gia da duoc hoan thanh.
+
+        Ten cong viec: ${task.title}
+        Nguoi hoan thanh: ${completer ? completer.fullName : 'TaskManager'}
+
+        Vui long dang nhap TaskManager de xem chi tiet.
+
+        Tran trong,
+        TaskManager
+                        `;
+
+                        const emailLog = await EmailLog.create({
+                            taskId: task._id,
+                            recipientEmail: recipient.email,
+                            eventType: 'task_completed',
+                            subject,
+                            status: 'pending'
+                        });
+
+                        const result = await sendEmail({
+                            to: recipient.email,
+                            subject,
+                            text
+                        });
+
+                        emailLog.attempts += 1;
+
+                        if (result.success) {
+                            emailLog.status = 'sent';
+                            emailLog.sentAt = new Date();
+                            emailLog.errorMessage = null;
+                        } else {
+                            emailLog.status = 'failed';
+                            emailLog.errorMessage = result.error;
+                        }
+
+                        await emailLog.save();
+
+                    } catch (recipientError) {
+                        console.error(
+                            `Loi gui email hoan thanh cho ${recipient.email}:`,
+                            recipientError.message
+                        );
+                    }
+                }
+            } catch (emailError) {
+                console.error(
+                    'Loi xu ly email hoan thanh cong viec:',
+                    emailError.message
+                );
+            }
+        }
 
         // D3: Gui email cho nguoi duoc giao va nguoi duoc chia se
         // Khong gui email cho nguoi dang cap nhat
