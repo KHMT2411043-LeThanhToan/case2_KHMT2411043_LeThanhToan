@@ -7,6 +7,7 @@ const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
 const taskRoutes = require('./routes/tasks');
 const userRoutes = require('./routes/users');
+const { startReminderJob } = require('./services/reminderService');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -67,7 +68,11 @@ await taskCollection.updateMany(
 );
 
 console.log('Da chuyen doi trang thai cong viec cu thanh cong!');
-        app.listen(PORT, () => {
+
+// D5: Khoi dong lich gui email nhac viec
+startReminderJob();
+
+app.listen(PORT, () => {
             console.log(`Server is running on port ${PORT}`);
         });
     } catch (error) {
