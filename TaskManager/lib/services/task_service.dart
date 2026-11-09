@@ -306,4 +306,36 @@ class TaskService {
       errorData['message'] ?? 'Khong the cap nhat tien do.',
     );
   }
+  // D6: Lay lich su gui email cua cong viec
+  Future<List<Map<String, dynamic>>> fetchEmailLogs({
+    required String taskId,
+  }) async {
+    final token = await AuthService().getToken();
+
+    if (token == null || token.isEmpty) {
+      throw Exception('Vui long dang nhap lai.');
+    }
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/$taskId/email-logs'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    final Map<String, dynamic> data = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> logs = data['emailLogs'] ?? [];
+
+      return logs
+          .map((item) => item as Map<String, dynamic>)
+          .toList();
+    }
+
+    throw Exception(
+      data['message'] ?? 'Khong the lay lich su gui email.',
+    );
+  }
 }

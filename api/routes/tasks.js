@@ -1242,5 +1242,64 @@ router.delete('/:id/shares/:userId', authenticateToken, async (req, res) => {
         });
     }
 });
+// D6: Lay lich su gui email cua mot cong viec
+router.get('/:id/email-logs', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
 
+        if (!isValidId(id)) {
+            return res.status(400).json({
+                message: 'ID cong viec khong hop le'
+            });
+        }
+
+        const task = await Task.findById(id);
+
+        if (!task) {
+            return res.status(404).json({
+                message: 'Khong tim thay cong viec'
+            });
+        }
+
+        // Chi nguoi tao, nguoi duoc giao hoac nguoi duoc chia se
+        // moi duoc xem lich su email cua cong viec
+        const isCreator =
+            String(task.createdBy) === String(req.userId);
+
+        const isAssignee = task.assignedTo.some(
+            user => String(user) === String(req.userId)
+        );
+
+        const isSharedUser = task.sharedWith.some(
+            user => String(user) === String(req.userId)
+        );
+
+        if (!isCreator && !isAssignee && !isSharedUser) {
+            return res.status(403).json({
+                message: 'Ban khong co quyen xem lich su email'
+            });
+        }
+
+        const emailLogs = await EmailLog.find({
+            taskId: task._id
+        })
+            .sort({ createdAt: -1 })
+            .select(
+                'recipientEmail eventType subject status attempts errorMessage sentAt createdAt'
+            );
+
+        return res.json({
+            message: 'Lay lich su email thanh cong',
+            total: emailLogs.length,
+            emailLogs
+        });
+
+    } catch (error) {
+        console.error('Loi lay lich su email:', error);
+
+        return res.status(500).json({
+            message: 'Khong the lay lich su email'
+        });
+    }
+});
 module.exports = router;

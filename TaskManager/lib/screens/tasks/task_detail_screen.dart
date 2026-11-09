@@ -6,6 +6,7 @@ import '../../services/auth_service.dart';
 import '../../services/task_service.dart';
 import '../../services/user_service.dart';
 import 'task_edit_screen.dart';
+import 'task_email_history_screen.dart';
 
 class TaskDetailScreen extends StatefulWidget {
   final Task task;
@@ -28,6 +29,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   String? _currentUserId;
   bool _isLoadingUser = true;
   bool _isDeleting = false;
+
+  void _openEmailHistory() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TaskEmailHistoryScreen(task: _task),
+      ),
+    );
+  }
 
   bool get _isCreator =>
       _currentUserId != null && _task.createdBy == _currentUserId;
@@ -720,6 +730,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       appBar: AppBar(
         title: const Text('Chi tiết công việc'),
         actions: [
+          if (!_isLoadingUser)
+            IconButton(
+              icon: const Icon(Icons.history),
+              tooltip: 'Lịch sử gửi email',
+              onPressed: _isDeleting ? null : _openEmailHistory,
+            ),
           if (!_isLoadingUser && _canEdit)
             IconButton(
               icon: const Icon(Icons.edit),
