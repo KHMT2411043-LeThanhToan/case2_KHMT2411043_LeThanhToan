@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import '../../models/task.dart';
 import '../../services/task_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/notification_service.dart';
 import '../../widgets/task_card.dart';
 import '../auth/login_screen.dart';
 import '../profile/profile_screen.dart';
+import '../notifications/notification_screen.dart';
 import 'task_detail_screen.dart';
 import 'task_create_screen.dart';
 
@@ -19,8 +21,11 @@ class TaskListScreen extends StatefulWidget {
 
 class _TaskListScreenState extends State<TaskListScreen> {
   final TaskService _taskService = TaskService();
+  final NotificationService _notificationService =
+  NotificationService();
 
   late Future<List<Task>> _tasksFuture;
+  late Future<int> _unreadCountFuture;
 
   String? _selectedType;
   String? _selectedStatus;
@@ -55,6 +60,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
   void initState() {
     super.initState();
     _loadTasks();
+    _loadUnreadCount();
   }
 
   @override
@@ -67,6 +73,30 @@ class _TaskListScreenState extends State<TaskListScreen> {
     _tasksFuture = _taskService.fetchTasks(
       type: _selectedType,
     );
+  }
+
+  void _loadUnreadCount() {
+    _unreadCountFuture =
+        _notificationService.fetchUnreadCount().catchError(
+              (error) {
+            return 0;
+          },
+        );
+  }
+
+  Future<void> _openNotifications() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const NotificationScreen(),
+      ),
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      _loadUnreadCount();
+    });
   }
 
   Future<void> _reloadTasks() async {
@@ -230,7 +260,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-
                       const SizedBox(height: 20),
 
                       // Lọc theo loại công việc
@@ -362,14 +391,15 @@ class _TaskListScreenState extends State<TaskListScreen> {
                             ),
                           ),
                           ...assignees.values.map(
-                                (assignee) => DropdownMenuItem<String?>(
-                              value: assignee.id,
-                              child: Text(
-                                assignee.fullName.isEmpty
-                                    ? assignee.email
-                                    : assignee.fullName,
-                              ),
-                            ),
+                                (assignee) =>
+                                DropdownMenuItem<String?>(
+                                  value: assignee.id,
+                                  child: Text(
+                                    assignee.fullName.isEmpty
+                                        ? assignee.email
+                                        : assignee.fullName,
+                                  ),
+                                ),
                           ),
                         ],
                         onChanged: (value) {
@@ -390,7 +420,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
                               _selectedType = draftType;
                               _selectedStatus = draftStatus;
                               _selectedPriority = draftPriority;
-                              _selectedAssigneeId = draftAssigneeId;
+                              _selectedAssigneeId =
+                                  draftAssigneeId;
 
                               _loadTasks();
                             });
@@ -455,7 +486,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-
                     const SizedBox(height: 20),
 
                     DropdownButtonFormField<String>(
@@ -550,6 +580,63 @@ class _TaskListScreenState extends State<TaskListScreen> {
         title: const Text('Task Manager'),
         centerTitle: true,
         actions: [
+          // Chuông thông báo và số thông báo chưa đọc
+          FutureBuilder<int>(
+            future: _unreadCountFuture,
+            builder: (context, snapshot) {
+              final unreadCount = snapshot.data ?? 0;
+
+              return IconButton(
+                tooltip: 'Thông báo',
+                onPressed: _openNotifications,
+                icon: SizedBox(
+                  width: 42,
+                  height: 42,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.center,
+                    children: [
+                      const Icon(
+                        Icons.notifications_outlined,
+                        size: 27,
+                      ),
+                      if (unreadCount > 0)
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 18,
+                              minHeight: 18,
+                            ),
+                            child: Text(
+                              unreadCount > 99
+                                  ? '99+'
+                                  : unreadCount.toString(),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+
           IconButton(
             icon: const Icon(Icons.person),
             tooltip: 'Thông tin cá nhân',
@@ -562,6 +649,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
               );
             },
           ),
+
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Đăng xuất',
