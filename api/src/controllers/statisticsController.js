@@ -55,6 +55,38 @@ const getTaskStatisticsByStatus = async (req, res) => {
     }
 };
 
+// GET /api/statistics/assignments
+const getAssignmentStatistics = async (req, res) => {
+    try {
+        const userId = new mongoose.Types.ObjectId(req.userId);
+
+        // Dem cong viec duoc giao cho nguoi dung hien tai
+        const assigned = await Task.countDocuments({
+            assignedTo: userId
+        });
+
+        // Dem cong viec nguoi dung hien tai phu trach chinh
+        const responsible = await Task.countDocuments({
+            primaryAssigneeId: userId
+        });
+
+        return res.json({
+            message: 'Lay thong ke cong viec duoc giao va phu trach thanh cong',
+            statistics: {
+                assigned,
+                responsible
+            }
+        });
+    } catch (error) {
+        console.error('Loi lay thong ke cong viec duoc giao va phu trach:', error);
+
+        return res.status(500).json({
+            message: 'Khong the lay thong ke cong viec duoc giao va phu trach'
+        });
+    }
+};
+
 module.exports = {
-    getTaskStatisticsByStatus
+    getTaskStatisticsByStatus,
+    getAssignmentStatistics
 };
