@@ -1,29 +1,36 @@
 
-const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-const router = express.Router();
-
 // Tao JWT token
-function createToken(user) {
-    if (!process.env.JWT_SECRET) {
+const createToken = (user) => {
+    const secret = process.env.JWT_SECRET;
+
+    if (!secret) {
         throw new Error('Chua cau hinh JWT_SECRET trong file .env');
     }
 
     return jwt.sign(
         { userId: user._id.toString() },
-        process.env.JWT_SECRET,
+        secret,
         { expiresIn: '7d' }
     );
-}
+};
 
-// API dang ky tai khoan
-router.post('/register', async (req, res) => {
+// Tao du lieu nguoi dung tra ve client
+const formatUser = (user) => ({
+    id: user._id,
+    fullName: user.fullName,
+    email: user.email
+});
+
+// Xu ly dang ky tai khoan
+const register = async (req, res) => {
     try {
         const { fullName, email, password } = req.body;
 
+        // Kiem tra du lieu dau vao
         if (
             typeof fullName !== 'string' ||
             typeof email !== 'string' ||
@@ -45,6 +52,7 @@ router.post('/register', async (req, res) => {
 
         const normalizedEmail = email.trim().toLowerCase();
 
+        // Kiem tra email da ton tai
         const existingUser = await User.findOne({
             email: normalizedEmail
         });
@@ -55,8 +63,10 @@ router.post('/register', async (req, res) => {
             });
         }
 
+        // Ma hoa mat khau
         const hashedPassword = await bcrypt.hash(password, 12);
 
+        // Tao tai khoan
         const user = await User.create({
             fullName: fullName.trim(),
             email: normalizedEmail,
@@ -68,11 +78,7 @@ router.post('/register', async (req, res) => {
         return res.status(201).json({
             message: 'Dang ky tai khoan thanh cong',
             token,
-            user: {
-                id: user._id,
-                fullName: user.fullName,
-                email: user.email
-            }
+            user: formatUser(user)
         });
     } catch (error) {
         if (error.code === 11000) {
@@ -82,17 +88,19 @@ router.post('/register', async (req, res) => {
         }
 
         console.error('Loi dang ky:', error.message);
+
         return res.status(500).json({
             message: 'Khong the dang ky tai khoan'
         });
     }
-});
+};
 
-// API dang nhap
-router.post('/login', async (req, res) => {
+// Xu ly dang nhap
+const login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
+        // Kiem tra du lieu dau vao
         if (
             typeof email !== 'string' ||
             typeof password !== 'string' ||
@@ -104,11 +112,26 @@ router.post('/login', async (req, res) => {
             });
         }
 
+        const normalizedEmail = email.trim().toLowerCase();
+
+        // Tim tai khoan
         const user = await User.findOne({
-            email: email.trim().toLowerCase()
+            email: normalizedEmail
         }).select('+password');
 
-        if (!user || !(await bcrypt.compare(password, user.password))) {
+        if (!user) {
+            return res.status(401).json({
+                message: 'Email hoac mat khau khong dung'
+            });
+        }
+
+        // Kiem tra mat khau
+        const isPasswordValid = await bcrypt.compare(
+            password,
+            user.password
+        );
+
+        if (!isPasswordValid) {
             return res.status(401).json({
                 message: 'Email hoac mat khau khong dung'
             });
@@ -119,18 +142,18 @@ router.post('/login', async (req, res) => {
         return res.json({
             message: 'Dang nhap thanh cong',
             token,
-            user: {
-                id: user._id,
-                fullName: user.fullName,
-                email: user.email
-            }
+            user: formatUser(user)
         });
     } catch (error) {
         console.error('Loi dang nhap:', error.message);
+
         return res.status(500).json({
             message: 'Khong the dang nhap'
         });
     }
-});
+};
 
-module.exports = router;
+module.exports = {
+    register,
+    login
+};

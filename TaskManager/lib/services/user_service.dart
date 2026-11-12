@@ -1,37 +1,24 @@
 
 import 'dart:convert';
 
-import 'package:http/http.dart' as http;
-
-import 'auth_service.dart';
+import 'api_client.dart';
 
 class UserService {
-  static const String _baseUrl = 'http://10.0.2.2:5000/api/users';
+  final ApiClient _apiClient = ApiClient();
 
-  final AuthService _authService = AuthService();
-
-  // Tim kiem nguoi dung theo ten hoac email
+  // Tìm kiếm người dùng theo tên hoặc email.
   Future<List<Map<String, dynamic>>> searchUsers(
       String keyword,
       ) async {
-    final token = await _authService.getToken();
-
-    if (token == null || token.isEmpty) {
-      throw Exception('Vui long dang nhap lai.');
-    }
-
-    final uri = Uri.parse('$_baseUrl/search').replace(
+    final query = Uri(
       queryParameters: {
         'q': keyword.trim(),
       },
-    );
+    ).query;
 
-    final response = await http.get(
-      uri,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
+    final response = await _apiClient.request(
+      method: 'GET',
+      path: '/users/search?$query',
     );
 
     if (response.statusCode == 200) {
@@ -39,23 +26,18 @@ class UserService {
 
       if (data is List) {
         return data
-            .map((item) => Map<String, dynamic>.from(item))
+            .map((item) => Map<String, dynamic>.from(item as Map))
             .toList();
       }
 
-      throw Exception('Du lieu nguoi dung khong hop le.');
+      throw Exception('Dữ liệu người dùng không hợp lệ.');
     }
-
-    if (response.statusCode == 401) {
-      throw Exception('Phien dang nhap het han. Vui long dang nhap lai.');
-    }
-
-    final data = jsonDecode(response.body);
 
     throw Exception(
-      data is Map
-          ? data['message'] ?? 'Khong the tim kiem nguoi dung.'
-          : 'Khong the tim kiem nguoi dung.',
+      _apiClient.getErrorMessage(
+        response,
+        defaultMessage: 'Không thể tìm kiếm người dùng.',
+      ),
     );
   }
 }

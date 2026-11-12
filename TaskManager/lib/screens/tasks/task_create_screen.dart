@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 import '../../services/task_service.dart';
 import '../../services/user_service.dart';
+import '../../utils/date_formatter.dart';
+import '../../widgets/user_selector.dart';
 
 class TaskCreateScreen extends StatefulWidget {
   const TaskCreateScreen({super.key});
@@ -105,7 +107,6 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
       _searchController.clear();
       _searchResults = [];
 
-      // Neu chua co nguoi phu trach chinh thi chon nguoi dau tien
       _primaryAssigneeId ??= userId;
     });
   }
@@ -195,7 +196,6 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
     setState(() {
       _selectedSharedUsers.add(user);
 
-      // Mac dinh quyen xem
       _sharedUserPermissions[userId] = 'viewer';
 
       _shareSearchResults.removeWhere(
@@ -307,14 +307,6 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
     }
   }
 
-  String _formatDate(DateTime? date) {
-    if (date == null) return 'Chưa chọn';
-
-    return '${date.day.toString().padLeft(2, '0')}/'
-        '${date.month.toString().padLeft(2, '0')}/'
-        '${date.year}';
-  }
-
   @override
   void dispose() {
     _titleController.dispose();
@@ -400,7 +392,12 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
 
             ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text(_formatDate(_startDate)),
+              title: Text(
+                DateFormatter.formatDate(
+                  _startDate,
+                  emptyText: 'Chưa chọn',
+                ),
+              ),
               trailing: const Icon(Icons.calendar_month),
               onTap: () => _selectDate(true),
             ),
@@ -414,7 +411,12 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
 
             ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text(_formatDate(_dueDate)),
+              title: Text(
+                DateFormatter.formatDate(
+                  _dueDate,
+                  emptyText: 'Chưa chọn',
+                ),
+              ),
               trailing: const Icon(Icons.calendar_month),
               onTap: () => _selectDate(false),
             ),
@@ -431,49 +433,15 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
 
             const SizedBox(height: 12),
 
-            TextField(
+            UserSelector(
               controller: _searchController,
-              decoration: InputDecoration(
-                labelText: 'Tìm theo tên hoặc email',
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _isSearching
-                    ? const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
-                  ),
-                )
-                    : null,
-              ),
-              onChanged: _searchUsers,
+              labelText: 'Tìm theo tên hoặc email',
+              prefixIcon: Icons.search,
+              isSearching: _isSearching,
+              searchResults: _searchResults,
+              onSearch: _searchUsers,
+              onUserSelected: _addAssignee,
             ),
-
-            if (_searchResults.isNotEmpty)
-              Container(
-                margin: const EdgeInsets.only(top: 8),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  children: _searchResults.map((user) {
-                    return ListTile(
-                      leading: const CircleAvatar(
-                        child: Icon(Icons.person),
-                      ),
-                      title: Text(user['fullName'] ?? 'Không có tên'),
-                      subtitle: Text(user['email'] ?? ''),
-                      trailing: const Icon(Icons.add_circle_outline),
-                      onTap: () => _addAssignee(user),
-                    );
-                  }).toList(),
-                ),
-              ),
 
             const SizedBox(height: 16),
 
@@ -557,49 +525,15 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
 
             const SizedBox(height: 12),
 
-            TextField(
+            UserSelector(
               controller: _shareSearchController,
-              decoration: InputDecoration(
-                labelText: 'Tìm người muốn chia sẻ',
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.people_outline),
-                suffixIcon: _isSearchingSharedUsers
-                    ? const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
-                  ),
-                )
-                    : null,
-              ),
-              onChanged: _searchSharedUsers,
+              labelText: 'Tìm người muốn chia sẻ',
+              prefixIcon: Icons.people_outline,
+              isSearching: _isSearchingSharedUsers,
+              searchResults: _shareSearchResults,
+              onSearch: _searchSharedUsers,
+              onUserSelected: _addSharedUser,
             ),
-
-            if (_shareSearchResults.isNotEmpty)
-              Container(
-                margin: const EdgeInsets.only(top: 8),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  children: _shareSearchResults.map((user) {
-                    return ListTile(
-                      leading: const CircleAvatar(
-                        child: Icon(Icons.person_outline),
-                      ),
-                      title: Text(user['fullName'] ?? 'Không có tên'),
-                      subtitle: Text(user['email'] ?? ''),
-                      trailing: const Icon(Icons.add_circle_outline),
-                      onTap: () => _addSharedUser(user),
-                    );
-                  }).toList(),
-                ),
-              ),
 
             const SizedBox(height: 12),
 

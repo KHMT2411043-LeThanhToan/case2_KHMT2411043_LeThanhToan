@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/auth_service.dart';
+import '../../utils/validators.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -124,12 +125,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       border: OutlineInputBorder(),
                     ),
                     textCapitalization: TextCapitalization.words,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Vui lòng nhập họ và tên';
-                      }
-                      return null;
-                    },
+                    validator: AppValidators.validateFullName,
                   ),
                   const SizedBox(height: 16),
 
@@ -141,19 +137,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.emailAddress,
-                    validator: (value) {
-                      final email = value?.trim() ?? '';
-                      final pattern =
-                      RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-
-                      if (email.isEmpty) {
-                        return 'Vui lòng nhập email';
-                      }
-                      if (!pattern.hasMatch(email)) {
-                        return 'Email không hợp lệ';
-                      }
-                      return null;
-                    },
+                    validator: AppValidators.validateEmail,
                   ),
                   const SizedBox(height: 16),
 
@@ -177,15 +161,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         },
                       ),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Vui lòng nhập mật khẩu';
-                      }
-                      if (value.length < 8) {
-                        return 'Mật khẩu phải có ít nhất 8 ký tự';
-                      }
-                      return null;
-                    },
+                    validator: AppValidators.validatePassword,
                   ),
                   const SizedBox(height: 16),
 
@@ -211,13 +187,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Vui lòng xác nhận mật khẩu';
-                      }
-                      if (value != _passwordController.text) {
-                        return 'Mật khẩu xác nhận không khớp';
-                      }
-                      return null;
+                      return AppValidators.validateConfirmPassword(
+                        value,
+                        _passwordController.text,
+                      );
                     },
                   ),
                   const SizedBox(height: 24),

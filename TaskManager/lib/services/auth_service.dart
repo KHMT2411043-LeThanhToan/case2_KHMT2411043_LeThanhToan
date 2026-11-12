@@ -1,39 +1,30 @@
 
 import 'dart:convert';
 
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-class AuthService {
-  static const String _baseUrl = 'http://10.0.2.2:5000/api/auth';
+import 'api_client.dart';
 
-  // Dang ky tai khoan
+class AuthService {
+  final ApiClient _apiClient = ApiClient();
+
   Future<Map<String, dynamic>> register({
     required String fullName,
     required String email,
     required String password,
   }) async {
-    final uri = Uri.parse('$_baseUrl/register');
-
-    final response = await http.post(
-      uri,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
+    final response = await _apiClient.request(
+      method: 'POST',
+      path: '/auth/register',
+      authenticated: false,
+      body: {
         'fullName': fullName.trim(),
         'email': email.trim(),
         'password': password,
-      }),
+      },
     );
 
-    final Map<String, dynamic> data;
-
-    try {
-      data = jsonDecode(response.body) as Map<String, dynamic>;
-    } catch (_) {
-      throw Exception('May chu tra ve du lieu khong hop le.');
-    }
+    final data = _apiClient.decodeMap(response.body);
 
     if (response.statusCode == 201) {
       await _saveToken(data);
@@ -41,35 +32,25 @@ class AuthService {
     }
 
     throw Exception(
-      data['message'] ?? 'Dang ky that bai. Vui long thu lai.',
+      data['message'] ?? 'Đăng ký thất bại. Vui lòng thử lại.',
     );
   }
 
-  // Dang nhap
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
   }) async {
-    final uri = Uri.parse('$_baseUrl/login');
-
-    final response = await http.post(
-      uri,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
+    final response = await _apiClient.request(
+      method: 'POST',
+      path: '/auth/login',
+      authenticated: false,
+      body: {
         'email': email.trim(),
         'password': password,
-      }),
+      },
     );
 
-    final Map<String, dynamic> data;
-
-    try {
-      data = jsonDecode(response.body) as Map<String, dynamic>;
-    } catch (_) {
-      throw Exception('May chu tra ve du lieu khong hop le.');
-    }
+    final data = _apiClient.decodeMap(response.body);
 
     if (response.statusCode == 200) {
       await _saveToken(data);
@@ -77,11 +58,10 @@ class AuthService {
     }
 
     throw Exception(
-      data['message'] ?? 'Dang nhap that bai. Vui long thu lai.',
+      data['message'] ?? 'Đăng nhập thất bại. Vui lòng thử lại.',
     );
   }
 
-  // Luu token dang nhap
   Future<void> _saveToken(Map<String, dynamic> data) async {
     final token = data['token'];
 
@@ -91,13 +71,10 @@ class AuthService {
     }
   }
 
-  // Lay token
   Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
+    return _apiClient.getToken();
   }
 
-  // Lay ID nguoi dung hien tai tu JWT
   Future<String?> getCurrentUserId() async {
     final token = await getToken();
 
@@ -122,11 +99,10 @@ class AuthService {
         return null;
       }
 
-      final userId =
-          payload['userId'] ??
-              payload['id'] ??
-              payload['_id'] ??
-              payload['sub'];
+      final userId = payload['userId'] ??
+          payload['id'] ??
+          payload['_id'] ??
+          payload['sub'];
 
       return userId?.toString();
     } catch (_) {
@@ -134,7 +110,6 @@ class AuthService {
     }
   }
 
-  // Dang xuat
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');

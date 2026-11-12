@@ -1,6 +1,8 @@
 
 import 'package:flutter/material.dart';
+
 import '../../services/profile_service.dart';
+import '../../utils/validators.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -10,8 +12,10 @@ class ChangePasswordScreen extends StatefulWidget {
       _ChangePasswordScreenState();
 }
 
-class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
+class _ChangePasswordScreenState
+    extends State<ChangePasswordScreen> {
   final _formKey = GlobalKey<FormState>();
+
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -32,7 +36,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   Future<void> _changePassword() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
       await ProfileService().changePassword(
@@ -63,7 +69,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       );
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -73,7 +81,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     required TextEditingController controller,
     required bool obscureText,
     required VoidCallback onToggleVisibility,
-    String? Function(String?)? validator,
+    required String? Function(String?) validator,
   }) {
     return TextFormField(
       controller: controller,
@@ -84,7 +92,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         border: const OutlineInputBorder(),
         suffixIcon: IconButton(
           icon: Icon(
-            obscureText ? Icons.visibility_off : Icons.visibility,
+            obscureText
+                ? Icons.visibility_off
+                : Icons.visibility,
           ),
           onPressed: onToggleVisibility,
         ),
@@ -128,15 +138,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   obscureText: _hideCurrentPassword,
                   onToggleVisibility: () {
                     setState(() {
-                      _hideCurrentPassword = !_hideCurrentPassword;
+                      _hideCurrentPassword =
+                      !_hideCurrentPassword;
                     });
                   },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Vui lòng nhập mật khẩu hiện tại';
-                    }
-                    return null;
-                  },
+                  validator:
+                  AppValidators.validateCurrentPassword,
                 ),
                 const SizedBox(height: 16),
 
@@ -150,16 +157,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                     });
                   },
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Vui lòng nhập mật khẩu mới';
-                    }
-                    if (value.length < 8) {
-                      return 'Mật khẩu mới phải có ít nhất 8 ký tự';
-                    }
-                    if (value == _currentPasswordController.text) {
-                      return 'Mật khẩu mới phải khác mật khẩu hiện tại';
-                    }
-                    return null;
+                    return AppValidators.validateNewPassword(
+                      value,
+                      _currentPasswordController.text,
+                    );
                   },
                 ),
                 const SizedBox(height: 16),
@@ -170,25 +171,26 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   obscureText: _hideConfirmPassword,
                   onToggleVisibility: () {
                     setState(() {
-                      _hideConfirmPassword = !_hideConfirmPassword;
+                      _hideConfirmPassword =
+                      !_hideConfirmPassword;
                     });
                   },
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Vui lòng xác nhận mật khẩu mới';
-                    }
-                    if (value != _newPasswordController.text) {
-                      return 'Mật khẩu xác nhận không khớp';
-                    }
-                    return null;
+                    return AppValidators.validateConfirmPassword(
+                      value,
+                      _newPasswordController.text,
+                    );
                   },
                 ),
                 const SizedBox(height: 24),
 
                 ElevatedButton(
-                  onPressed: _isLoading ? null : _changePassword,
+                  onPressed:
+                  _isLoading ? null : _changePassword,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                    ),
                     child: _isLoading
                         ? const SizedBox(
                       height: 22,

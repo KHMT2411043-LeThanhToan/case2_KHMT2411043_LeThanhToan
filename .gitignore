@@ -16,3 +16,6 @@ TaskManager/android/.gradle/
 .idea/
 *.iml
 .DS_Store
+# Backup files and temporary structure export
+*.backup
+project_structure.txt

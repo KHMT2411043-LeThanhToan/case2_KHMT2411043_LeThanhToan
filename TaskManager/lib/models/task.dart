@@ -1,96 +1,12 @@
 
-class TaskAssignee {
-  final String id;
-  final String fullName;
-  final String email;
+import 'task_assignee.dart';
+import 'task_progress.dart';
+import 'task_share.dart';
 
-  const TaskAssignee({
-    required this.id,
-    required this.fullName,
-    required this.email,
-  });
+export 'task_assignee.dart';
+export 'task_progress.dart';
+export 'task_share.dart';
 
-  factory TaskAssignee.fromJson(Map<String, dynamic> json) {
-    return TaskAssignee(
-      id: json['_id']?.toString() ?? '',
-      fullName: json['fullName']?.toString() ?? '',
-      email: json['email']?.toString() ?? '',
-    );
-  }
-}
-
-// Model luu thong tin nguoi duoc chia se va quyen cua ho
-class TaskShare {
-  final String userId;
-  final String fullName;
-  final String email;
-  final String permission;
-
-  const TaskShare({
-    required this.userId,
-    this.fullName = '',
-    this.email = '',
-    this.permission = 'viewer',
-  });
-
-  factory TaskShare.fromJson(Map<String, dynamic> json) {
-    final userData = json['user'];
-
-    if (userData is Map<String, dynamic>) {
-      return TaskShare(
-        userId: userData['_id']?.toString() ?? '',
-        fullName: userData['fullName']?.toString() ?? '',
-        email: userData['email']?.toString() ?? '',
-        permission: json['permission']?.toString() ?? 'viewer',
-      );
-    }
-
-    return TaskShare(
-      userId: userData?.toString() ?? '',
-      permission: json['permission']?.toString() ?? 'viewer',
-    );
-  }
-}
-// Model tien do cua tung nguoi duoc giao
-class TaskProgress {
-  final String userId;
-  final String fullName;
-  final String email;
-  final String status;
-  final DateTime? updatedAt;
-
-  const TaskProgress({
-    required this.userId,
-    this.fullName = '',
-    this.email = '',
-    this.status = 'not_started',
-    this.updatedAt,
-  });
-
-  factory TaskProgress.fromJson(Map<String, dynamic> json) {
-    final userData = json['user'];
-
-    if (userData is Map<String, dynamic>) {
-      return TaskProgress(
-        userId: userData['_id']?.toString() ?? '',
-        fullName: userData['fullName']?.toString() ?? '',
-        email: userData['email']?.toString() ?? '',
-        status: json['status']?.toString() ?? 'not_started',
-        updatedAt: json['updatedAt'] != null
-            ? DateTime.tryParse(json['updatedAt'].toString())?.toLocal()
-            : null,
-      );
-    }
-
-    return TaskProgress(
-      userId: userData?.toString() ?? '',
-      status: json['status']?.toString() ?? 'not_started',
-      updatedAt: json['updatedAt'] != null
-          ? DateTime.tryParse(json['updatedAt'].toString())?.toLocal()
-          : null,
-    );
-  }
-}
 class Task {
   final String id;
   final String title;
@@ -109,6 +25,7 @@ class Task {
   final List<TaskAssignee> sharedUsers;
   final List<TaskShare> sharedPermissions;
   final List<TaskProgress> assigneeProgress;
+
   Task({
     required this.id,
     required this.title,
@@ -172,8 +89,7 @@ class Task {
           .toList()
           : [],
 
-      primaryAssignee:
-      json['primaryAssigneeId'] is Map<String, dynamic>
+      primaryAssignee: json['primaryAssigneeId'] is Map<String, dynamic>
           ? TaskAssignee.fromJson(
         json['primaryAssigneeId'] as Map<String, dynamic>,
       )
@@ -189,7 +105,7 @@ class Task {
           .toList()
           : [],
 
-      // Nguoi duoc chia se cu chua co quyen mac dinh la viewer
+      // Người được chia sẻ cũ chưa có quyền mặc định là viewer.
       sharedPermissions: json['sharedPermissions'] is List
           ? (json['sharedPermissions'] as List)
           .whereType<Map<String, dynamic>>()

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../models/task.dart';
 import '../../services/task_service.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/task_card.dart';
 import '../auth/login_screen.dart';
 import '../profile/profile_screen.dart';
 import 'task_detail_screen.dart';
@@ -25,11 +26,13 @@ class _TaskListScreenState extends State<TaskListScreen> {
   String? _selectedStatus;
   String? _selectedPriority;
   String? _selectedAssigneeId;
-// Tiêu chí sắp xếp
+
+  // Tiêu chí sắp xếp
   String _sortBy = 'createdAt';
 
-// Thứ tự sắp xếp: true = tăng dần
+  // Thứ tự sắp xếp: true = tăng dần
   bool _ascending = false;
+
   final TextEditingController _searchController =
   TextEditingController();
 
@@ -45,71 +48,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
         return 'Được chia sẻ';
       default:
         return 'Tất cả';
-    }
-  }
-
-  String _getStatusLabel(String status) {
-    switch (status) {
-      case 'not_started':
-        return 'Chưa thực hiện';
-      case 'in_progress':
-        return 'Đang thực hiện';
-      case 'completed':
-        return 'Đã hoàn thành';
-      default:
-        return 'Chưa thực hiện';
-    }
-  }
-
-  IconData _getStatusIcon(String status) {
-    switch (status) {
-      case 'not_started':
-        return Icons.radio_button_unchecked;
-      case 'in_progress':
-        return Icons.pending;
-      case 'completed':
-        return Icons.check_circle;
-      default:
-        return Icons.radio_button_unchecked;
-    }
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'not_started':
-        return Colors.orange;
-      case 'in_progress':
-        return Colors.blue;
-      case 'completed':
-        return Colors.green;
-      default:
-        return Colors.orange;
-    }
-  }
-
-  String _getPriorityLabel(String priority) {
-    switch (priority) {
-      case 'low':
-        return 'Thấp';
-      case 'medium':
-        return 'Trung bình';
-      case 'high':
-        return 'Cao';
-      default:
-        return 'Trung bình';
-    }
-  }
-
-  Color _getPriorityColor(String priority) {
-    switch (priority) {
-      case 'low':
-        return Colors.green;
-      case 'medium':
-        return Colors.orange;
-      case 'high':
-        return Colors.red;
-      default:
-        return Colors.orange;
     }
   }
 
@@ -138,6 +76,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
     await _tasksFuture;
   }
+
   void _sortTasks(List<Task> tasks) {
     tasks.sort((a, b) {
       int result = 0;
@@ -168,6 +107,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
       return _ascending ? result : -result;
     });
   }
+
   Future<void> _openCreateTaskScreen() async {
     final result = await Navigator.push<bool>(
       context,
@@ -450,8 +390,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                               _selectedType = draftType;
                               _selectedStatus = draftStatus;
                               _selectedPriority = draftPriority;
-                              _selectedAssigneeId =
-                                  draftAssigneeId;
+                              _selectedAssigneeId = draftAssigneeId;
 
                               _loadTasks();
                             });
@@ -490,6 +429,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
       },
     );
   }
+
   // Mở bảng sắp xếp công việc
   Future<void> _openSortSheet() async {
     String draftSortBy = _sortBy;
@@ -602,6 +542,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
       },
     );
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -676,7 +617,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
                 const SizedBox(width: 4),
 
-// Nút sắp xếp công việc
+                // Nút sắp xếp công việc
                 IconButton(
                   onPressed: _openSortSheet,
                   tooltip: 'Sắp xếp công việc',
@@ -791,8 +732,10 @@ class _TaskListScreenState extends State<TaskListScreen> {
                       matchesPriority &&
                       matchesAssignee;
                 }).toList();
+
                 // Sắp xếp danh sách công việc
                 _sortTasks(tasks);
+
                 // Hiển thị danh sách kết quả
                 return tasks.isEmpty
                     ? RefreshIndicator(
@@ -843,81 +786,11 @@ class _TaskListScreenState extends State<TaskListScreen> {
                     itemBuilder: (context, index) {
                       final task = tasks[index];
 
-                      return Card(
-                        margin: const EdgeInsets.only(
-                          bottom: 12,
-                        ),
-                        child: ListTile(
-                          onTap: () {
-                            _openTaskDetail(task);
-                          },
-                          leading: Icon(
-                            _getStatusIcon(task.status),
-                            color: _getStatusColor(
-                              task.status,
-                            ),
-                            size: 30,
-                          ),
-                          title: Text(
-                            task.title,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment:
-                            CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const SizedBox(height: 4),
-                              Text(
-                                task.description.isEmpty
-                                    ? 'Không có mô tả'
-                                    : task.description,
-                                maxLines: 2,
-                                overflow:
-                                TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 6),
-                              Row(
-                                mainAxisSize:
-                                MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.flag,
-                                    size: 16,
-                                    color: _getPriorityColor(
-                                      task.priority,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Ưu tiên: ${_getPriorityLabel(task.priority)}',
-                                    style: TextStyle(
-                                      color:
-                                      _getPriorityColor(
-                                        task.priority,
-                                      ),
-                                      fontSize: 12,
-                                      fontWeight:
-                                      FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          trailing: Text(
-                            _getStatusLabel(task.status),
-                            style: TextStyle(
-                              color: _getStatusColor(
-                                task.status,
-                              ),
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+                      return TaskCard(
+                        task: task,
+                        onTap: () {
+                          _openTaskDetail(task);
+                        },
                       );
                     },
                   ),

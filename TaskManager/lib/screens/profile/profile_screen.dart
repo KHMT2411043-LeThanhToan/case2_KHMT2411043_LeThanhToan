@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/profile_service.dart';
+import '../../utils/validators.dart';
 import 'change_password_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -13,7 +14,11 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final ProfileService _profileService = ProfileService();
+
   final TextEditingController _fullNameController =
+  TextEditingController();
+
+  final TextEditingController _emailController =
   TextEditingController();
 
   String _email = '';
@@ -30,6 +35,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void dispose() {
     _fullNameController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
@@ -45,15 +51,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
 
       setState(() {
-        _fullNameController.text = user['fullName'] as String? ?? '';
-        _email = user['email'] as String? ?? '';
+        _fullNameController.text = user.fullName;
+        _email = user.email;
+        _emailController.text = _email;
         _isLoading = false;
       });
     } catch (error) {
       if (!mounted) return;
 
       setState(() {
-        _errorMessage = error.toString().replaceFirst('Exception: ', '');
+        _errorMessage =
+            error.toString().replaceFirst('Exception: ', '');
         _isLoading = false;
       });
     }
@@ -62,9 +70,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _updateProfile() async {
     final fullName = _fullNameController.text.trim();
 
-    if (fullName.isEmpty) {
+    final validationError =
+    AppValidators.validateFullName(fullName);
+
+    if (validationError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập họ tên.')),
+        SnackBar(
+          content: Text(validationError),
+        ),
       );
       return;
     }
@@ -74,13 +87,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
-      final user = await _profileService.updateFullName(fullName);
+      final user =
+      await _profileService.updateFullName(fullName);
 
       if (!mounted) return;
 
       setState(() {
-        _fullNameController.text = user['fullName'] as String? ?? fullName;
-        _email = user['email'] as String? ?? _email;
+        _fullNameController.text = user.fullName;
+        _email = user.email;
+        _emailController.text = _email;
         _isSaving = false;
       });
 
@@ -113,7 +128,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: const Text('Thông tin cá nhân'),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+        child: CircularProgressIndicator(),
+      )
           : _errorMessage != null
           ? Center(
         child: Padding(
@@ -139,7 +156,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           const CircleAvatar(
             radius: 42,
-            child: Icon(Icons.person, size: 48),
+            child: Icon(
+              Icons.person,
+              size: 48,
+            ),
           ),
           const SizedBox(height: 24),
           TextField(
@@ -152,7 +172,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 16),
           TextField(
-            controller: TextEditingController(text: _email),
+            controller: _emailController,
             readOnly: true,
             decoration: const InputDecoration(
               labelText: 'Email',
@@ -162,7 +182,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
-            onPressed: _isSaving ? null : _updateProfile,
+            onPressed:
+            _isSaving ? null : _updateProfile,
             icon: _isSaving
                 ? const SizedBox(
               width: 18,
@@ -173,7 +194,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             )
                 : const Icon(Icons.save),
             label: Text(
-              _isSaving ? 'Đang lưu...' : 'Lưu thay đổi',
+              _isSaving
+                  ? 'Đang lưu...'
+                  : 'Lưu thay đổi',
             ),
           ),
           const SizedBox(height: 16),
@@ -182,7 +205,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ChangePasswordScreen(),
+                  builder: (context) =>
+                  const ChangePasswordScreen(),
                 ),
               );
             },

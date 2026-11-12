@@ -1,104 +1,82 @@
 
-import 'dart:convert';
-
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import '../models/user.dart';
+import 'api_client.dart';
 
 class ProfileService {
-  static const String _baseUrl = 'http://10.0.2.2:5000/api/profile';
+  final ApiClient _apiClient = ApiClient();
 
-  Future<Map<String, dynamic>> getProfile() async {
-    final token = await _getToken();
-
-    final response = await http.get(
-      Uri.parse(_baseUrl),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
+  // Lấy thông tin cá nhân.
+  Future<User> getProfile() async {
+    final response = await _apiClient.request(
+      method: 'GET',
+      path: '/profile',
     );
 
-    final data = _decodeResponse(response.body);
+    final data = _apiClient.decodeMap(response.body);
 
     if (response.statusCode == 200) {
-      return data['user'] as Map<String, dynamic>;
+      return User.fromJson(
+        Map<String, dynamic>.from(data['user'] as Map),
+      );
     }
 
     throw Exception(
-      data['message'] ?? 'Không thể tải thông tin cá nhân.',
+      _apiClient.getErrorMessage(
+        response,
+        defaultMessage: 'Không thể tải thông tin cá nhân.',
+      ),
     );
   }
 
-  Future<Map<String, dynamic>> updateFullName(String fullName) async {
-    final token = await _getToken();
-
-    final response = await http.put(
-      Uri.parse(_baseUrl),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({
+  // Cập nhật họ tên.
+  Future<User> updateFullName(String fullName) async {
+    final response = await _apiClient.request(
+      method: 'PUT',
+      path: '/profile',
+      body: {
         'fullName': fullName.trim(),
-      }),
+      },
     );
 
-    final data = _decodeResponse(response.body);
+    final data = _apiClient.decodeMap(response.body);
 
     if (response.statusCode == 200) {
-      return data['user'] as Map<String, dynamic>;
+      return User.fromJson(
+        Map<String, dynamic>.from(data['user'] as Map),
+      );
     }
 
     throw Exception(
-      data['message'] ?? 'Không thể cập nhật thông tin cá nhân.',
+      _apiClient.getErrorMessage(
+        response,
+        defaultMessage: 'Không thể cập nhật thông tin cá nhân.',
+      ),
     );
   }
 
-  Future<String> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
-    if (token == null || token.isEmpty) {
-      throw Exception('Bạn chưa đăng nhập. Vui lòng đăng nhập lại.');
-    }
-
-    return token;
-  }
-
-  Map<String, dynamic> _decodeResponse(String body) {
-    try {
-      return jsonDecode(body) as Map<String, dynamic>;
-    } catch (_) {
-      throw Exception('Máy chủ trả về dữ liệu không hợp lệ.');
-    }
-  }
-
+  // Đổi mật khẩu.
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
   }) async {
-    final token = await _getToken();
-
-    final response = await http.put(
-      Uri.parse('$_baseUrl/change-password'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({
+    final response = await _apiClient.request(
+      method: 'PUT',
+      path: '/profile/change-password',
+      body: {
         'currentPassword': currentPassword,
         'newPassword': newPassword,
-      }),
+      },
     );
-
-    final data = _decodeResponse(response.body);
 
     if (response.statusCode == 200) {
       return;
     }
 
     throw Exception(
-      data['message'] ?? 'Không thể đổi mật khẩu.',
+      _apiClient.getErrorMessage(
+        response,
+        defaultMessage: 'Không thể đổi mật khẩu.',
+      ),
     );
   }
-
 }

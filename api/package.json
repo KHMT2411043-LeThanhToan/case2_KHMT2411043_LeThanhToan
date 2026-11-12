@@ -1,11 +1,12 @@
+
 {
   "name": "task_manager_server",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon --watch routes --watch models --watch middleware server.js",
+    "start": "node src/server.js",
+    "dev": "nodemon --watch src src/server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

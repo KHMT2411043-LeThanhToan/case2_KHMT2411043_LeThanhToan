@@ -1,48 +1,46 @@
-
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 import '../models/task.dart';
-import 'auth_service.dart';
+import 'api_client.dart';
+import 'task_share_service.dart';
 
 class TaskService {
-  static const String baseUrl =
-      'http://10.0.2.2:5000/api/tasks';
+  final ApiClient _apiClient = ApiClient();
+  final TaskShareService _taskShareService = TaskShareService();
 
-  // Lay danh sach cong viec
   Future<List<Task>> fetchTasks({String? type}) async {
-    final token = await AuthService().getToken();
+    final query = type == null
+        ? ''
+        : '?${Uri(queryParameters: {'type': type}).query}';
 
-    if (token == null || token.isEmpty) {
-      throw Exception('Vui long dang nhap lai.');
-    }
-
-    final uri = Uri.parse(baseUrl).replace(
-      queryParameters: type == null ? null : {'type': type},
-    );
-
-    final response = await http.get(
-      uri,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
+    final response = await _apiClient.request(
+      method: 'GET',
+      path: '/tasks$query',
     );
 
     if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
+      final data = jsonDecode(response.body);
+
+      if (data is! List) {
+        throw Exception('Dữ liệu danh sách công việc không hợp lệ.');
+      }
 
       return data
-          .map((json) => Task.fromJson(json as Map<String, dynamic>))
+          .map((item) => Task.fromJson(
+        Map<String, dynamic>.from(item as Map),
+      ))
           .toList();
     }
 
     throw Exception(
-      'Khong the tai danh sach cong viec: ${response.statusCode}',
+      _apiClient.getErrorMessage(
+        response,
+        defaultMessage:
+        'Không thể tải danh sách công việc: ${response.statusCode}',
+      ),
     );
   }
 
-  // Tao cong viec
   Future<Task> createTask({
     required String title,
     String description = '',
@@ -54,19 +52,10 @@ class TaskService {
     List<String> sharedWith = const [],
     List<Map<String, String>> sharedPermissions = const [],
   }) async {
-    final token = await AuthService().getToken();
-
-    if (token == null || token.isEmpty) {
-      throw Exception('Vui long dang nhap lai.');
-    }
-
-    final response = await http.post(
-      Uri.parse(baseUrl),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
+    final response = await _apiClient.request(
+      method: 'POST',
+      path: '/tasks',
+      body: {
         'title': title,
         'description': description,
         'priority': priority,
@@ -76,23 +65,25 @@ class TaskService {
         'primaryAssigneeId': primaryAssigneeId,
         'sharedWith': sharedWith,
         'sharedPermissions': sharedPermissions,
-      }),
+      },
     );
 
     if (response.statusCode == 201) {
-      final Map<String, dynamic> data = jsonDecode(response.body);
+      final data = _apiClient.decodeMap(response.body);
 
-      return Task.fromJson(data['task'] as Map<String, dynamic>);
+      return Task.fromJson(
+        data['task'] as Map<String, dynamic>,
+      );
     }
 
-    final Map<String, dynamic> errorData = jsonDecode(response.body);
-
     throw Exception(
-      errorData['message'] ?? 'Khong the tao cong viec.',
+      _apiClient.getErrorMessage(
+        response,
+        defaultMessage: 'Không thể tạo công việc.',
+      ),
     );
   }
 
-  // Chinh sua cong viec va cap nhat trang thai, muc do uu tien
   Future<Task> updateTask({
     required String taskId,
     required String title,
@@ -102,15 +93,11 @@ class TaskService {
     DateTime? startDate,
     DateTime? dueDate,
   }) async {
-    final token = await AuthService().getToken();
-
-    if (token == null || token.isEmpty) {
-      throw Exception('Vui long dang nhap lai.');
-    }
-
     final Map<String, dynamic> requestData = {
       'title': title,
       'description': description,
+      'startDate': startDate?.toIso8601String(),
+      'dueDate': dueDate?.toIso8601String(),
     };
 
     if (status != null) {
@@ -121,221 +108,164 @@ class TaskService {
       requestData['priority'] = priority;
     }
 
-    requestData['startDate'] = startDate?.toIso8601String();
-    requestData['dueDate'] = dueDate?.toIso8601String();
-
-    final response = await http.put(
-      Uri.parse('$baseUrl/$taskId'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode(requestData),
+    final response = await _apiClient.request(
+      method: 'PUT',
+      path: '/tasks/$taskId',
+      body: requestData,
     );
 
     if (response.statusCode == 200) {
-      final Map<String, dynamic> data = jsonDecode(response.body);
+      final data = _apiClient.decodeMap(response.body);
 
-      return Task.fromJson(data['task'] as Map<String, dynamic>);
+      return Task.fromJson(
+        data['task'] as Map<String, dynamic>,
+      );
     }
 
-    final Map<String, dynamic> errorData = jsonDecode(response.body);
-
     throw Exception(
-      errorData['message'] ?? 'Khong the cap nhat cong viec.',
+      _apiClient.getErrorMessage(
+        response,
+        defaultMessage: 'Không thể cập nhật công việc.',
+      ),
     );
   }
 
-  // Xoa cong viec
+  // Cập nhật danh sách người được giao và người phụ trách chính.
+  Future<Task> updateTaskAssignments({
+    required String taskId,
+    required List<String> assignedTo,
+    String? primaryAssigneeId,
+  }) async {
+    final response = await _apiClient.request(
+      method: 'PUT',
+      path: '/assignments/$taskId',
+      body: {
+        'assignedTo': assignedTo,
+        'primaryAssigneeId': primaryAssigneeId,
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = _apiClient.decodeMap(response.body);
+
+      return Task.fromJson(
+        data['task'] as Map<String, dynamic>,
+      );
+    }
+
+    throw Exception(
+      _apiClient.getErrorMessage(
+        response,
+        defaultMessage: 'Không thể cập nhật người được giao.',
+      ),
+    );
+  }
+
   Future<void> deleteTask({
     required String taskId,
   }) async {
-    final token = await AuthService().getToken();
-
-    if (token == null || token.isEmpty) {
-      throw Exception('Vui long dang nhap lai.');
-    }
-
-    final response = await http.delete(
-      Uri.parse('$baseUrl/$taskId'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
+    final response = await _apiClient.request(
+      method: 'DELETE',
+      path: '/tasks/$taskId',
     );
 
     if (response.statusCode == 200) {
       return;
     }
 
-    final Map<String, dynamic> errorData = jsonDecode(response.body);
-
     throw Exception(
-      errorData['message'] ?? 'Khong the xoa cong viec.',
+      _apiClient.getErrorMessage(
+        response,
+        defaultMessage: 'Không thể xóa công việc.',
+      ),
     );
   }
 
-  // Moi nguoi moi chia se cong viec
   Future<void> addSharedUser({
     required String taskId,
     required String userId,
     String permission = 'viewer',
-  }) async {
-    final token = await AuthService().getToken();
-
-    if (token == null || token.isEmpty) {
-      throw Exception('Vui long dang nhap lai.');
-    }
-
-    final response = await http.post(
-      Uri.parse('$baseUrl/$taskId/shares'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'userId': userId,
-        'permission': permission,
-      }),
-    );
-
-    final Map<String, dynamic> data = jsonDecode(response.body);
-
-    if (response.statusCode == 201) {
-      return;
-    }
-
-    throw Exception(
-      data['message'] ?? 'Khong the moi nguoi chia se cong viec.',
+  }) {
+    return _taskShareService.addSharedUser(
+      taskId: taskId,
+      userId: userId,
+      permission: permission,
     );
   }
 
-  // Thay doi quyen chia se cong viec
   Future<void> updateSharePermission({
     required String taskId,
     required String userId,
     required String permission,
-  }) async {
-    final token = await AuthService().getToken();
-
-    if (token == null || token.isEmpty) {
-      throw Exception('Vui long dang nhap lai.');
-    }
-
-    final response = await http.put(
-      Uri.parse('$baseUrl/$taskId/shares/$userId'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'permission': permission,
-      }),
-    );
-
-    if (response.statusCode == 200) {
-      return;
-    }
-
-    final Map<String, dynamic> errorData = jsonDecode(response.body);
-
-    throw Exception(
-      errorData['message'] ?? 'Khong the thay doi quyen chia se.',
+  }) {
+    return _taskShareService.updateSharePermission(
+      taskId: taskId,
+      userId: userId,
+      permission: permission,
     );
   }
 
-  // Thu hoi quyen chia se cong viec
   Future<void> revokeSharePermission({
     required String taskId,
     required String userId,
-  }) async {
-    final token = await AuthService().getToken();
-
-    if (token == null || token.isEmpty) {
-      throw Exception('Vui long dang nhap lai.');
-    }
-
-    final response = await http.delete(
-      Uri.parse('$baseUrl/$taskId/shares/$userId'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      return;
-    }
-
-    final Map<String, dynamic> errorData = jsonDecode(response.body);
-
-    throw Exception(
-      errorData['message'] ?? 'Khong the thu hoi quyen chia se.',
+  }) {
+    return _taskShareService.revokeSharePermission(
+      taskId: taskId,
+      userId: userId,
     );
   }
 
-  // Cap nhat tien do ca nhan
   Future<void> updateMyProgress({
     required String taskId,
     required String status,
   }) async {
-    final token = await AuthService().getToken();
-
-    if (token == null || token.isEmpty) {
-      throw Exception('Vui long dang nhap lai.');
-    }
-
-    final response = await http.put(
-      Uri.parse('$baseUrl/$taskId/progress'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
+    final response = await _apiClient.request(
+      method: 'PUT',
+      path: '/tasks/$taskId/progress',
+      body: {
         'status': status,
-      }),
+      },
     );
 
     if (response.statusCode == 200) {
       return;
     }
 
-    final Map<String, dynamic> errorData = jsonDecode(response.body);
-
     throw Exception(
-      errorData['message'] ?? 'Khong the cap nhat tien do.',
+      _apiClient.getErrorMessage(
+        response,
+        defaultMessage: 'Không thể cập nhật tiến độ.',
+      ),
     );
   }
-  // D6: Lay lich su gui email cua cong viec
+
   Future<List<Map<String, dynamic>>> fetchEmailLogs({
     required String taskId,
   }) async {
-    final token = await AuthService().getToken();
-
-    if (token == null || token.isEmpty) {
-      throw Exception('Vui long dang nhap lai.');
-    }
-
-    final response = await http.get(
-      Uri.parse('$baseUrl/$taskId/email-logs'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
+    final response = await _apiClient.request(
+      method: 'GET',
+      path: '/tasks/$taskId/email-logs',
     );
 
-    final Map<String, dynamic> data = jsonDecode(response.body);
+    final data = _apiClient.decodeMap(response.body);
 
     if (response.statusCode == 200) {
-      final List<dynamic> logs = data['emailLogs'] ?? [];
+      final logs = data['emailLogs'] ?? [];
+
+      if (logs is! List) {
+        throw Exception('Dữ liệu lịch sử email không hợp lệ.');
+      }
 
       return logs
-          .map((item) => item as Map<String, dynamic>)
+          .map((item) => Map<String, dynamic>.from(item as Map))
           .toList();
     }
 
     throw Exception(
-      data['message'] ?? 'Khong the lay lich su gui email.',
+      _apiClient.getErrorMessage(
+        response,
+        defaultMessage: 'Không thể lấy lịch sử gửi email.',
+      ),
     );
   }
 }

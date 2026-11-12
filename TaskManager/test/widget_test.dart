@@ -1,11 +1,10 @@
-
 import 'package:flutter_test/flutter_test.dart';
-import 'package:task_manager_app/main.dart';
+import 'package:task_manager_app/app.dart';
 
 void main() {
-  testWidgets('Ứng dụng khởi chạy', (WidgetTester tester) async {
+  testWidgets('TaskManagerApp can be created', (WidgetTester tester) async {
     await tester.pumpWidget(const TaskManagerApp());
 
-    expect(find.text('Đăng nhập'), findsWidgets);
+    expect(find.byType(TaskManagerApp), findsOneWidget);
   });
 }

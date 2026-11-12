@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/task.dart';
 import '../../services/task_service.dart';
+import '../../utils/date_formatter.dart';
 
 class TaskEmailHistoryScreen extends StatefulWidget {
   final Task task;
@@ -42,6 +43,7 @@ class _TaskEmailHistoryScreenState
       setState(() {
         _emailLogs = logs;
         _isLoading = false;
+        _error = null;
       });
     } catch (e) {
       if (!mounted) return;
@@ -51,21 +53,6 @@ class _TaskEmailHistoryScreenState
         _isLoading = false;
       });
     }
-  }
-
-  String _formatDate(dynamic value) {
-    if (value == null) return 'Không có thông tin';
-
-    final date = DateTime.tryParse(value.toString());
-    if (date == null) return value.toString();
-
-    final localDate = date.toLocal();
-
-    return '${localDate.day.toString().padLeft(2, '0')}/'
-        '${localDate.month.toString().padLeft(2, '0')}/'
-        '${localDate.year} '
-        '${localDate.hour.toString().padLeft(2, '0')}:'
-        '${localDate.minute.toString().padLeft(2, '0')}';
   }
 
   String _eventName(dynamic value) {
@@ -189,9 +176,17 @@ class _TaskEmailHistoryScreenState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 6),
-                  Text('Loại thông báo: ${_eventName(log['eventType'])}'),
-                  Text('Tiêu đề: ${log['subject'] ?? 'Không có'}'),
-                  Text('Thời gian: ${_formatDate(log['sentAt'] ?? log['createdAt'])}'),
+                  Text(
+                    'Loại thông báo: ${_eventName(log['eventType'])}',
+                  ),
+                  Text(
+                    'Tiêu đề: ${log['subject'] ?? 'Không có'}',
+                  ),
+                  Text(
+                    'Thời gian: ${DateFormatter.formatDateTimeValue(
+                      log['sentAt'] ?? log['createdAt'],
+                    )}',
+                  ),
                   Text(
                     'Trạng thái: ${_statusName(status)}',
                     style: TextStyle(
@@ -203,9 +198,11 @@ class _TaskEmailHistoryScreenState
                       log['errorMessage'].toString().isNotEmpty)
                     Text(
                       'Lỗi: ${log['errorMessage']}',
-                      style: const TextStyle(color: Colors.red),
+                      style: const TextStyle(
+                        color: Colors.red,
+                      ),
                     ),
-                ],s
+                ],
               ),
               isThreeLine: true,
             ),

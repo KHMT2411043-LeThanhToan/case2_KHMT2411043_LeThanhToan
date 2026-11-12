@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/auth_service.dart';
+import '../../utils/validators.dart';
 import '../tasks/task_list_screen.dart';
 import 'register_screen.dart';
 
@@ -116,19 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     prefixIcon: Icon(Icons.email_outlined),
                     border: OutlineInputBorder(),
                   ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Vui lòng nhập email';
-                    }
-
-                    if (!RegExp(
-                      r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                    ).hasMatch(value.trim())) {
-                      return 'Email không hợp lệ';
-                    }
-
-                    return null;
-                  },
+                  validator: AppValidators.validateEmail,
                 ),
 
                 const SizedBox(height: 16),
@@ -143,8 +132,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword
-                            ? Icons.visibility
-                            : Icons.visibility_off,
+                            ? Icons.visibility_off
+                            : Icons.visibility,
                       ),
                       onPressed: () {
                         setState(() {
@@ -153,13 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Vui lòng nhập mật khẩu';
-                    }
-
-                    return null;
-                  },
+                  validator: AppValidators.validateLoginPassword,
                 ),
 
                 const SizedBox(height: 24),
