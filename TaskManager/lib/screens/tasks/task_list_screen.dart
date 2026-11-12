@@ -9,6 +9,7 @@ import '../../widgets/task_card.dart';
 import '../auth/login_screen.dart';
 import '../profile/profile_screen.dart';
 import '../notifications/notification_screen.dart';
+import '../statistics/statistics_screen.dart';
 import 'task_detail_screen.dart';
 import 'task_create_screen.dart';
 
@@ -22,7 +23,7 @@ class TaskListScreen extends StatefulWidget {
 class _TaskListScreenState extends State<TaskListScreen> {
   final TaskService _taskService = TaskService();
   final NotificationService _notificationService =
-  NotificationService();
+      NotificationService();
 
   late Future<List<Task>> _tasksFuture;
   late Future<int> _unreadCountFuture;
@@ -32,14 +33,11 @@ class _TaskListScreenState extends State<TaskListScreen> {
   String? _selectedPriority;
   String? _selectedAssigneeId;
 
-  // Tiêu chí sắp xếp
   String _sortBy = 'createdAt';
-
-  // Thứ tự sắp xếp: true = tăng dần
   bool _ascending = false;
 
   final TextEditingController _searchController =
-  TextEditingController();
+      TextEditingController();
 
   String _typeLabel(String? type) {
     switch (type) {
@@ -78,10 +76,10 @@ class _TaskListScreenState extends State<TaskListScreen> {
   void _loadUnreadCount() {
     _unreadCountFuture =
         _notificationService.fetchUnreadCount().catchError(
-              (error) {
-            return 0;
-          },
-        );
+      (error) {
+        return 0;
+      },
+    );
   }
 
   Future<void> _openNotifications() async {
@@ -97,6 +95,15 @@ class _TaskListScreenState extends State<TaskListScreen> {
     setState(() {
       _loadUnreadCount();
     });
+  }
+
+  Future<void> _openStatisticsScreen() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const StatisticsScreen(),
+      ),
+    );
   }
 
   Future<void> _reloadTasks() async {
@@ -189,7 +196,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
       MaterialPageRoute(
         builder: (context) => const LoginScreen(),
       ),
-          (route) => false,
+      (route) => false,
     );
   }
 
@@ -206,13 +213,11 @@ class _TaskListScreenState extends State<TaskListScreen> {
     await _reloadTasks();
   }
 
-  // Mở bảng bộ lọc công việc
   Future<void> _openFilterSheet() async {
     final tasks = await _tasksFuture;
 
     if (!mounted) return;
 
-    // Lấy danh sách người phụ trách
     final assignees = <String, TaskAssignee>{};
 
     for (final task in tasks) {
@@ -223,15 +228,14 @@ class _TaskListScreenState extends State<TaskListScreen> {
       }
     }
 
-    // Các lựa chọn tạm thời trong bảng lọc
     String? draftType = _selectedType;
     String? draftStatus = _selectedStatus;
     String? draftPriority = _selectedPriority;
 
     String? draftAssigneeId =
-    assignees.containsKey(_selectedAssigneeId)
-        ? _selectedAssigneeId
-        : null;
+        assignees.containsKey(_selectedAssigneeId)
+            ? _selectedAssigneeId
+            : null;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -262,7 +266,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Lọc theo loại công việc
                       DropdownButtonFormField<String?>(
                         initialValue: draftType,
                         decoration: const InputDecoration(
@@ -301,7 +304,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
                       const SizedBox(height: 16),
 
-                      // Lọc theo trạng thái
                       DropdownButtonFormField<String?>(
                         initialValue: draftStatus,
                         decoration: const InputDecoration(
@@ -338,7 +340,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
                       const SizedBox(height: 16),
 
-                      // Lọc theo mức độ ưu tiên
                       DropdownButtonFormField<String?>(
                         initialValue: draftPriority,
                         decoration: const InputDecoration(
@@ -375,7 +376,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
                       const SizedBox(height: 16),
 
-                      // Lọc theo người phụ trách
                       DropdownButtonFormField<String?>(
                         initialValue: draftAssigneeId,
                         decoration: const InputDecoration(
@@ -391,15 +391,14 @@ class _TaskListScreenState extends State<TaskListScreen> {
                             ),
                           ),
                           ...assignees.values.map(
-                                (assignee) =>
-                                DropdownMenuItem<String?>(
-                                  value: assignee.id,
-                                  child: Text(
-                                    assignee.fullName.isEmpty
-                                        ? assignee.email
-                                        : assignee.fullName,
-                                  ),
-                                ),
+                            (assignee) => DropdownMenuItem<String?>(
+                              value: assignee.id,
+                              child: Text(
+                                assignee.fullName.isEmpty
+                                    ? assignee.email
+                                    : assignee.fullName,
+                              ),
+                            ),
                           ),
                         ],
                         onChanged: (value) {
@@ -411,7 +410,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
                       const SizedBox(height: 24),
 
-                      // Nút áp dụng bộ lọc
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
@@ -420,8 +418,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                               _selectedType = draftType;
                               _selectedStatus = draftStatus;
                               _selectedPriority = draftPriority;
-                              _selectedAssigneeId =
-                                  draftAssigneeId;
+                              _selectedAssigneeId = draftAssigneeId;
 
                               _loadTasks();
                             });
@@ -435,7 +432,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
                       const SizedBox(height: 8),
 
-                      // Nút xóa tất cả bộ lọc
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton(
@@ -461,7 +457,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
     );
   }
 
-  // Mở bảng sắp xếp công việc
   Future<void> _openSortSheet() async {
     String draftSortBy = _sortBy;
     bool draftAscending = _ascending;
@@ -580,7 +575,12 @@ class _TaskListScreenState extends State<TaskListScreen> {
         title: const Text('Task Manager'),
         centerTitle: true,
         actions: [
-          // Chuông thông báo và số thông báo chưa đọc
+          IconButton(
+            tooltip: 'Thống kê công việc',
+            icon: const Icon(Icons.bar_chart),
+            onPressed: _openStatisticsScreen,
+          ),
+
           FutureBuilder<int>(
             future: _unreadCountFuture,
             builder: (context, snapshot) {
@@ -666,7 +666,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
       body: Column(
         children: [
-          // Ô tìm kiếm và biểu tượng bộ lọc
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: Row(
@@ -688,7 +687,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
                 const SizedBox(width: 8),
 
-                // Nút lọc công việc
                 IconButton(
                   onPressed: _openFilterSheet,
                   tooltip: 'Bộ lọc công việc',
@@ -705,7 +703,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
                 const SizedBox(width: 4),
 
-                // Nút sắp xếp công việc
                 IconButton(
                   onPressed: _openSortSheet,
                   tooltip: 'Sắp xếp công việc',
@@ -723,7 +720,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
             ),
           ),
 
-          // Danh sách công việc
           Expanded(
             child: FutureBuilder<List<Task>>(
               future: _tasksFuture,
@@ -774,7 +770,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
                 final allTasks = snapshot.data ?? [];
 
-                // Lấy danh sách người phụ trách
                 final assignees = <String, TaskAssignee>{};
 
                 for (final task in allTasks) {
@@ -785,17 +780,14 @@ class _TaskListScreenState extends State<TaskListScreen> {
                   }
                 }
 
-                // Kiểm tra người phụ trách còn tồn tại
                 final selectedAssigneeId =
-                assignees.containsKey(_selectedAssigneeId)
-                    ? _selectedAssigneeId
-                    : null;
+                    assignees.containsKey(_selectedAssigneeId)
+                        ? _selectedAssigneeId
+                        : null;
 
-                // Tìm kiếm theo tên
                 final keyword =
-                _searchController.text.trim().toLowerCase();
+                    _searchController.text.trim().toLowerCase();
 
-                // Kết hợp tất cả điều kiện lọc
                 final tasks = allTasks.where((task) {
                   final matchesName = task.title
                       .toLowerCase()
@@ -821,68 +813,66 @@ class _TaskListScreenState extends State<TaskListScreen> {
                       matchesAssignee;
                 }).toList();
 
-                // Sắp xếp danh sách công việc
                 _sortTasks(tasks);
 
-                // Hiển thị danh sách kết quả
                 return tasks.isEmpty
                     ? RefreshIndicator(
-                  onRefresh: _reloadTasks,
-                  child: ListView(
-                    physics:
-                    const AlwaysScrollableScrollPhysics(),
-                    children: [
-                      const SizedBox(height: 100),
-                      const Icon(
-                        Icons.search_off,
-                        size: 64,
-                        color: Colors.grey,
-                      ),
-                      const SizedBox(height: 16),
-                      Center(
-                        child: Text(
-                          allTasks.isEmpty
-                              ? 'Chưa có công việc nào.'
-                              : 'Không tìm thấy công việc phù hợp.',
-                          style: const TextStyle(
-                            fontSize: 16,
-                          ),
+                        onRefresh: _reloadTasks,
+                        child: ListView(
+                          physics:
+                              const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            const SizedBox(height: 100),
+                            const Icon(
+                              Icons.search_off,
+                              size: 64,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(height: 16),
+                            Center(
+                              child: Text(
+                                allTasks.isEmpty
+                                    ? 'Chưa có công việc nào.'
+                                    : 'Không tìm thấy công việc phù hợp.',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Center(
+                              child: Text(
+                                'Danh mục: ${_typeLabel(_selectedType)}',
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Center(
+                              child: Text(
+                                'Kéo xuống để tải lại.',
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Center(
-                        child: Text(
-                          'Danh mục: ${_typeLabel(_selectedType)}',
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Center(
-                        child: Text(
-                          'Kéo xuống để tải lại.',
-                        ),
-                      ),
-                    ],
-                  ),
-                )
+                      )
                     : RefreshIndicator(
-                  onRefresh: _reloadTasks,
-                  child: ListView.builder(
-                    physics:
-                    const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
-                    itemCount: tasks.length,
-                    itemBuilder: (context, index) {
-                      final task = tasks[index];
+                        onRefresh: _reloadTasks,
+                        child: ListView.builder(
+                          physics:
+                              const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.all(16),
+                          itemCount: tasks.length,
+                          itemBuilder: (context, index) {
+                            final task = tasks[index];
 
-                      return TaskCard(
-                        task: task,
-                        onTap: () {
-                          _openTaskDetail(task);
-                        },
+                            return TaskCard(
+                              task: task,
+                              onTap: () {
+                                _openTaskDetail(task);
+                              },
+                            );
+                          },
+                        ),
                       );
-                    },
-                  ),
-                );
               },
             ),
           ),
