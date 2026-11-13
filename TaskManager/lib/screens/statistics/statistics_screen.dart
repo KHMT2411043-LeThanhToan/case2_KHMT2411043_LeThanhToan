@@ -4,18 +4,17 @@ import 'package:flutter/material.dart';
 import '../../models/statistics.dart';
 import '../../models/assignment_statistics.dart';
 import '../../services/statistics_service.dart';
+import 'deadline_screen.dart';
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
 
   @override
-  State<StatisticsScreen> createState() =>
-      _StatisticsScreenState();
+  State<StatisticsScreen> createState() => _StatisticsScreenState();
 }
 
 class _StatisticsScreenState extends State<StatisticsScreen> {
-  final StatisticsService _statisticsService =
-  StatisticsService();
+  final StatisticsService _statisticsService = StatisticsService();
 
   late Future<Statistics> _statisticsFuture;
   late Future<AssignmentStatistics> _assignmentStatisticsFuture;
@@ -47,6 +46,15 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     } catch (_) {
       // Loi duoc hien thi rieng trong cac FutureBuilder.
     }
+  }
+
+  void _openDeadlineScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const DeadlineScreen(),
+      ),
+    );
   }
 
   Widget _buildStatisticCard({
@@ -281,6 +289,20 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             const SizedBox(height: 16),
 
             _buildAssignmentStatistics(),
+
+            const SizedBox(height: 24),
+
+            // E3: Dieu huong den man hinh cong viec sap den han va qua han
+            ElevatedButton.icon(
+              onPressed: _openDeadlineScreen,
+              icon: const Icon(Icons.event_note),
+              label: const Text(
+                'Công việc sắp đến hạn và quá hạn',
+              ),
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 48),
+              ),
+            ),
 
             const SizedBox(height: 16),
 

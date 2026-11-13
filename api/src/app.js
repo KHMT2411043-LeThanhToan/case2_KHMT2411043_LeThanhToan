@@ -9,7 +9,7 @@ const assignmentRoutes = require('./routes/assignmentRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const statisticsRoutes = require('./routes/statisticsRoutes');
 const app = express();
-
+const deadlineRoutes = require('./routes/deadlineRoutes');
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
@@ -19,6 +19,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/statistics', statisticsRoutes);
+app.use('/api/deadlines', deadlineRoutes);
 app.get('/', (req, res) => {
     res.send('Task Manager API is running!');
 });
