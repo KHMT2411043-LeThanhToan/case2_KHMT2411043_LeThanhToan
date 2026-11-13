@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../../models/task.dart';
@@ -8,6 +7,7 @@ import '../assignment/assign_task_screen.dart';
 import '../sharing/task_sharing_screen.dart';
 import 'task_edit_screen.dart';
 import 'task_email_history_screen.dart';
+import 'task_activity_screen.dart';
 
 class TaskDetailScreen extends StatefulWidget {
   final Task task;
@@ -36,6 +36,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => TaskEmailHistoryScreen(task: _task),
+      ),
+    );
+  }
+
+  void _openActivityHistory() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TaskActivityScreen(
+          taskId: _task.id,
+          taskTitle: _task.title,
+        ),
       ),
     );
   }
@@ -569,6 +581,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               icon: const Icon(Icons.history),
               tooltip: 'Lịch sử gửi email',
               onPressed: _isDeleting ? null : _openEmailHistory,
+            ),
+          if (!_isLoadingUser)
+            IconButton(
+              icon: const Icon(Icons.timeline),
+              tooltip: 'Lịch sử hoạt động',
+              onPressed: _isDeleting ? null : _openActivityHistory,
             ),
           if (!_isLoadingUser && _canEdit)
             IconButton(

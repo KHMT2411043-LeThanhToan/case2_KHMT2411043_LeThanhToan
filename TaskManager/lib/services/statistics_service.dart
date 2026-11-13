@@ -1,4 +1,3 @@
-
 import '../models/statistics.dart';
 import '../models/assignment_statistics.dart';
 import 'api_client.dart';
@@ -6,7 +5,7 @@ import 'api_client.dart';
 class StatisticsService {
   final ApiClient _apiClient = ApiClient();
 
-  // E1: Thong ke cong viec theo trang thai
+  // E1: Thống kê công việc theo trạng thái
   Future<Statistics> fetchTaskStatisticsByStatus() async {
     final response = await _apiClient.request(
       method: 'GET',
@@ -15,15 +14,8 @@ class StatisticsService {
 
     if (response.statusCode == 200) {
       final data = _apiClient.decodeMap(response.body);
-      final statistics = data['statistics'];
 
-      if (statistics is! Map) {
-        throw Exception('Dữ liệu thống kê không hợp lệ.');
-      }
-
-      return Statistics.fromJson(
-        Map<String, dynamic>.from(statistics),
-      );
+      return Statistics.fromJson(data);
     }
 
     throw Exception(
@@ -34,7 +26,7 @@ class StatisticsService {
     );
   }
 
-  // E2: Thong ke cong viec duoc giao va phu trach
+  // E2: Thống kê công việc được giao và phụ trách chính
   Future<AssignmentStatistics> fetchAssignmentStatistics() async {
     final response = await _apiClient.request(
       method: 'GET',
@@ -43,21 +35,14 @@ class StatisticsService {
 
     if (response.statusCode == 200) {
       final data = _apiClient.decodeMap(response.body);
-      final statistics = data['statistics'];
 
-      if (statistics is! Map) {
-        throw Exception('Dữ liệu thống kê phân công không hợp lệ.');
-      }
-
-      return AssignmentStatistics.fromJson(
-        Map<String, dynamic>.from(statistics),
-      );
+      return AssignmentStatistics.fromJson(data);
     }
 
     throw Exception(
       _apiClient.getErrorMessage(
         response,
-        defaultMessage: 'Không thể tải thống kê công việc được giao.',
+        defaultMessage: 'Không thể tải thống kê phân công.',
       ),
     );
   }

@@ -5,6 +5,7 @@ const User = require('../models/User');
 const EmailLog = require('../models/EmailLog');
 const { sendEmail } = require('../services/emailService');
 const { createNotifications } = require('../services/notificationService');
+const { logTaskActivity } = require('../services/activityService');
 
 // GET /api/assignments/:taskId
 // Lay danh sach nguoi duoc giao va nguoi phu trach chinh
@@ -176,7 +177,31 @@ const updateAssignment = async (req, res) => {
         );
 
         await task.save();
+        // Ghi lich su giao cong viec cho nguoi moi
+        if (addedUsers.length > 0) {
+            await logTaskActivity({
+                taskId: task._id,
+                userId: req.userId,
+                action: 'assigned',
+                description: `Da giao cong viec cho ${addedUsers.length} nguoi`,
+                changes: {
+                    addedUsers
+                }
+            });
+        }
 
+        // Ghi lich su thu hoi cong viec
+        if (removedUsers.length > 0) {
+            await logTaskActivity({
+                taskId: task._id,
+                userId: req.userId,
+                action: 'assignment_removed',
+                description: `Da thu hoi cong viec tu ${removedUsers.length} nguoi`,
+                changes: {
+                    removedUsers
+                }
+            });
+        }
         // Gui thong bao cho nguoi moi duoc giao
         if (addedUsers.length > 0) {
             try {
@@ -313,10 +338,18 @@ const acceptTask = async (req, res) => {
             id => String(id) === userId
         );
 
-        if (!alreadyAccepted) {
-            task.acceptedBy.push(req.userId);
-            await task.save();
-        }
+                if (!alreadyAccepted) {
+                    task.acceptedBy.push(req.userId);
+                    await task.save();
+
+                    // Ghi lich su nhan cong viec
+                    await logTaskActivity({
+                        taskId: task._id,
+                        userId: req.userId,
+                        action: 'accepted',
+                        description: 'Da chap nhan cong viec'
+                    });
+                }
 
         return res.json({
             message: 'Nhan cong viec thanh cong',
@@ -373,6 +406,14 @@ const updateProgress = async (req, res) => {
                 message: 'Ban khong phai nguoi duoc giao cong viec nay'
             });
         }
+        // Lay tien do cu de ghi lich su thay doi
+        const oldProgress = task.assigneeProgress.find(
+            item => String(item.user) === userId
+        );
+
+        const oldProgressStatus = oldProgress
+            ? oldProgress.status
+            : 'not_started';
 
         const progress = task.assigneeProgress.find(
             item => String(item.user) === userId
@@ -389,12 +430,27 @@ const updateProgress = async (req, res) => {
             });
         }
 
-        await task.save();
+                await task.save();
 
-        return res.json({
-            message: 'Cap nhat tien do thanh cong',
-            assigneeProgress: task.assigneeProgress
-        });
+                // Ghi lich su cap nhat tien do ca nhan
+                if (oldProgressStatus !== status) {
+                    await logTaskActivity({
+                        taskId: task._id,
+                        userId: req.userId,
+                        action: 'progress_updated',
+                        description: `Da cap nhat tien do: ${oldProgressStatus} -> ${status}`,
+                        changes: {
+                            oldStatus: oldProgressStatus,
+                            newStatus: status
+                        }
+                    });
+                }
+
+                return res.json({
+                    message: 'Cap nhat tien do thanh cong',
+                    assigneeProgress: task.assigneeProgress
+                });
+
     } catch (error) {
         console.error('Loi cap nhat tien do:', error);
 

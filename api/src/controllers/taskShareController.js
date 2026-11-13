@@ -5,6 +5,7 @@ const User = require('../models/User');
 const EmailLog = require('../models/EmailLog');
 const { sendEmail } = require('../services/emailService');
 const { createNotifications } = require('../services/notificationService');
+const { logTaskActivity } = require('../services/activityService');
 
 // POST /api/tasks/:id/shares
 const shareTask = async (req, res) => {
@@ -83,6 +84,19 @@ const shareTask = async (req, res) => {
         });
 
         await task.save();
+
+        // Ghi lich su chia se cong viec
+        await logTaskActivity({
+            taskId: task._id,
+            userId: req.userId,
+            action: 'shared',
+            description: `Da chia se cong viec voi ${invitedUser.fullName}`,
+            changes: {
+                sharedWith: userId,
+                permission
+            }
+        });
+
 
         // Tao thong bao trong ung dung
         try {
@@ -231,6 +245,11 @@ const updateSharePermission = async (req, res) => {
             item => String(item.user) === String(userId)
         );
 
+        const oldPermission = share
+            ? share.permission
+            : 'viewer';
+
+
         if (share) {
             share.permission = permission;
         } else {
@@ -240,12 +259,27 @@ const updateSharePermission = async (req, res) => {
             });
         }
 
-        await task.save();
+                await task.save();
 
-        return res.json({
-            message: 'Thay doi quyen chia se thanh cong',
-            task
-        });
+                // Ghi lich su thay doi quyen chia se
+                if (oldPermission !== permission) {
+                    await logTaskActivity({
+                        taskId: task._id,
+                        userId: req.userId,
+                        action: 'permission_changed',
+                        description: `Da thay doi quyen chia se: ${oldPermission} -> ${permission}`,
+                        changes: {
+                            sharedUserId: userId,
+                            oldPermission,
+                            newPermission: permission
+                        }
+                    });
+                }
+
+                return res.json({
+                    message: 'Thay doi quyen chia se thanh cong',
+                    task
+                });
     } catch (error) {
         console.error('Loi thay doi quyen chia se:', error);
 
@@ -287,6 +321,16 @@ const revokeShare = async (req, res) => {
             user => String(user) === String(userId)
         );
 
+        // Lay thong tin nguoi duoc thu hoi quyen
+        const revokedPermission = task.sharedPermissions.find(
+            item => String(item.user) === String(userId)
+        );
+
+        const oldPermission = revokedPermission
+            ? revokedPermission.permission
+            : 'viewer';
+
+
         if (!isShared) {
             return res.status(404).json({
                 message: 'Nguoi dung khong duoc chia se cong viec nay'
@@ -305,12 +349,24 @@ const revokeShare = async (req, res) => {
             user => String(user) !== String(userId)
         );
 
-        await task.save();
+                await task.save();
 
-        return res.json({
-            message: 'Thu hoi quyen chia se thanh cong',
-            task
-        });
+                // Ghi lich su thu hoi quyen chia se
+                await logTaskActivity({
+                    taskId: task._id,
+                    userId: req.userId,
+                    action: 'share_revoked',
+                    description: 'Da thu hoi quyen chia se cong viec',
+                    changes: {
+                        sharedUserId: userId,
+                        oldPermission
+                    }
+                });
+
+                return res.json({
+                    message: 'Thu hoi quyen chia se thanh cong',
+                    task
+                });
     } catch (error) {
         console.error('Loi thu hoi quyen chia se:', error);
 

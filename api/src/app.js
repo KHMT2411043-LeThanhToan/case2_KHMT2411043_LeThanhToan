@@ -10,11 +10,13 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const statisticsRoutes = require('./routes/statisticsRoutes');
 const app = express();
 const deadlineRoutes = require('./routes/deadlineRoutes');
+const activityRoutes = require('./routes/activityRoutes');
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/tasks', activityRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/notifications', notificationRoutes);

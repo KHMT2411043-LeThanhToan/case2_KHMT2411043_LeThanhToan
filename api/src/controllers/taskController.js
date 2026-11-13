@@ -5,7 +5,7 @@ const User = require('../models/User');
 const EmailLog = require('../models/EmailLog');
 const { sendEmail } = require('../services/emailService');
 const { createNotifications } = require('../services/notificationService');
-
+const { logTaskActivity } = require('../services/activityService');
 // GET /api/tasks?type=created|assigned|accepted|shared
 const getTasks = async (req, res) => {
     try {
@@ -196,6 +196,42 @@ const createTask = async (req, res) => {
             sharedWith: shared,
             sharedPermissions: permissions
         });
+
+        // Ghi lich su tao cong viec
+        await logTaskActivity({
+            taskId: task._id,
+            userId: req.userId,
+            action: 'created',
+            description: `Da tao cong viec: ${task.title}`
+        });
+
+        // Ghi lich su giao viec khi tao cong viec
+        if (assigned.length > 0) {
+            await logTaskActivity({
+                taskId: task._id,
+                userId: req.userId,
+                action: 'assigned',
+                description: `Da giao cong viec cho ${assigned.length} nguoi`,
+                changes: {
+                    assignedTo: assigned
+                }
+            });
+        }
+
+        // Ghi lich su chia se khi tao cong viec
+        if (shared.length > 0) {
+            await logTaskActivity({
+                taskId: task._id,
+                userId: req.userId,
+                action: 'shared',
+                description: `Da chia se cong viec voi ${shared.length} nguoi`,
+                changes: {
+                    sharedWith: shared,
+                    permissions
+                }
+            });
+        }
+
 
         // Tao thong bao trong ung dung khi giao viec
         try {
@@ -587,10 +623,37 @@ const updateTask = async (req, res) => {
             task.status = status;
         }
 
-        task.startDate = parsedStartDate;
-        task.dueDate = parsedDueDate;
+                task.startDate = parsedStartDate;
+                task.dueDate = parsedDueDate;
 
-        await task.save();
+                await task.save();
+
+                // Ghi lich su chinh sua thong tin cong viec
+                if (changes.length > 0) {
+                    await logTaskActivity({
+                        taskId: task._id,
+                        userId: req.userId,
+                        action: 'updated',
+                        description: `Da cap nhat thong tin cong viec: ${task.title}`,
+                        changes: {
+                            details: changes
+                        }
+                    });
+                }
+
+                // Ghi lich su thay doi trang thai
+                if (oldStatus !== task.status) {
+                    await logTaskActivity({
+                        taskId: task._id,
+                        userId: req.userId,
+                        action: 'status_changed',
+                        description: `Da thay doi trang thai: ${oldStatus} -> ${task.status}`,
+                        changes: {
+                            oldStatus,
+                            newStatus: task.status
+                        }
+                    });
+                }
 
         // Gui email khi cong viec hoan thanh
         if (
