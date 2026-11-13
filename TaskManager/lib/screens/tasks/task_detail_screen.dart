@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../../models/task.dart';
@@ -131,14 +132,32 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Future<void> _loadCurrentUser() async {
-    final userId = await _authService.getCurrentUserId();
+    try {
+      final userId = await _authService.getCurrentUserId();
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
-      _currentUserId = userId;
-      _isLoadingUser = false;
-    });
+      setState(() {
+        _currentUserId = userId;
+        _isLoadingUser = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoadingUser = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Không thể tải thông tin người dùng: '
+                '${error.toString().replaceFirst('Exception: ', '')}',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   String _getStatusLabel(String status) {
@@ -348,17 +367,35 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  Future<void> _refreshTask() async {
-    final tasks = await _taskService.fetchTasks();
+  Future<bool> _refreshTask() async {
+    try {
+      final tasks = await _taskService.fetchTasks();
 
-    final updatedTasks = tasks.where(
-          (task) => task.id == _task.id,
-    );
+      final updatedTasks = tasks.where(
+            (task) => task.id == _task.id,
+      );
 
-    if (updatedTasks.isNotEmpty && mounted) {
-      setState(() {
-        _task = updatedTasks.first;
-      });
+      if (updatedTasks.isNotEmpty && mounted) {
+        setState(() {
+          _task = updatedTasks.first;
+        });
+      }
+
+      return true;
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Không thể tải lại công việc: '
+                  '${error.toString().replaceFirst('Exception: ', '')}',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+
+      return false;
     }
   }
 
@@ -371,14 +408,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         status: status,
       );
 
-      await _refreshTask();
+      if (!mounted) return;
+
+      final refreshed = await _refreshTask();
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cập nhật tiến độ thành công'),
-          backgroundColor: Colors.green,
+        SnackBar(
+          content: Text(
+            refreshed
+                ? 'Cập nhật tiến độ thành công'
+                : 'Đã cập nhật tiến độ, nhưng chưa tải lại được dữ liệu.',
+          ),
+          backgroundColor: refreshed ? Colors.green : Colors.orange,
         ),
       );
     } catch (error) {
@@ -684,7 +727,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 _task.createdBy,
                 Icons.person_outline,
               ),
-
               if (!_isLoadingUser && _isCreator) ...[
                 _buildSectionTitle(
                   'Quản lý giao việc',
@@ -697,19 +739,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     ),
                     title: const Text(
                       'Quản lý người được giao',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                     subtitle: const Text(
                       'Thêm, xóa hoặc thay đổi người phụ trách',
                     ),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 18),
+                    trailing: const Icon(
+                      Icons.arrow_forward_ios,
+                      size: 18,
+                    ),
                     onTap: _isDeleting ? null : _openAssignmentScreen,
                   ),
                 ),
               ],
-
               _buildSectionTitle(
                 'Người phụ trách chính',
                 Icons.star_outline,
@@ -772,9 +814,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   ),
                   title: const Text(
                     'Quản lý chia sẻ công việc',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                   subtitle: Text(
                     '${_task.sharedUsers.length} người được chia sẻ',

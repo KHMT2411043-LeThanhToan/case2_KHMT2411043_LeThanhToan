@@ -23,7 +23,7 @@ class TaskListScreen extends StatefulWidget {
 class _TaskListScreenState extends State<TaskListScreen> {
   final TaskService _taskService = TaskService();
   final NotificationService _notificationService =
-      NotificationService();
+  NotificationService();
 
   late Future<List<Task>> _tasksFuture;
   late Future<int> _unreadCountFuture;
@@ -35,9 +35,10 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
   String _sortBy = 'createdAt';
   bool _ascending = false;
+  bool _isLoggingOut = false;
 
   final TextEditingController _searchController =
-      TextEditingController();
+  TextEditingController();
 
   String _typeLabel(String? type) {
     switch (type) {
@@ -76,10 +77,22 @@ class _TaskListScreenState extends State<TaskListScreen> {
   void _loadUnreadCount() {
     _unreadCountFuture =
         _notificationService.fetchUnreadCount().catchError(
-      (error) {
-        return 0;
-      },
-    );
+              (error) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Không thể tải số thông báo: '
+                        '${error.toString().replaceFirst('Exception: ', '')}',
+                  ),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+
+            return 0;
+          },
+        );
   }
 
   Future<void> _openNotifications() async {
@@ -107,11 +120,17 @@ class _TaskListScreenState extends State<TaskListScreen> {
   }
 
   Future<void> _reloadTasks() async {
+    if (!mounted) return;
+
     setState(() {
       _loadTasks();
     });
 
-    await _tasksFuture;
+    try {
+      await _tasksFuture;
+    } catch (_) {
+      // FutureBuilder sẽ hiển thị lỗi và nút thử lại.
+    }
   }
 
   void _sortTasks(List<Task> tasks) {
@@ -161,6 +180,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
   }
 
   Future<void> _confirmLogout() async {
+    if (_isLoggingOut) return;
+
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -187,17 +208,41 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
     if (!mounted || shouldLogout != true) return;
 
-    await AuthService().logout();
+    setState(() {
+      _isLoggingOut = true;
+    });
 
-    if (!mounted) return;
+    try {
+      await AuthService().logout();
 
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const LoginScreen(),
-      ),
-      (route) => false,
-    );
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const LoginScreen(),
+        ),
+            (route) => false,
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Đăng xuất thất bại: '
+                '${error.toString().replaceFirst('Exception: ', '')}',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoggingOut = false;
+        });
+      }
+    }
   }
 
   Future<void> _openTaskDetail(Task task) async {
@@ -214,247 +259,265 @@ class _TaskListScreenState extends State<TaskListScreen> {
   }
 
   Future<void> _openFilterSheet() async {
-    final tasks = await _tasksFuture;
+    try {
+      final tasks = await _tasksFuture;
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    final assignees = <String, TaskAssignee>{};
+      final assignees = <String, TaskAssignee>{};
 
-    for (final task in tasks) {
-      for (final assignee in task.assignees) {
-        if (assignee.id.isNotEmpty) {
-          assignees[assignee.id] = assignee;
+      for (final task in tasks) {
+        for (final assignee in task.assignees) {
+          if (assignee.id.isNotEmpty) {
+            assignees[assignee.id] = assignee;
+          }
         }
       }
-    }
 
-    String? draftType = _selectedType;
-    String? draftStatus = _selectedStatus;
-    String? draftPriority = _selectedPriority;
+      String? draftType = _selectedType;
+      String? draftStatus = _selectedStatus;
+      String? draftPriority = _selectedPriority;
 
-    String? draftAssigneeId =
-        assignees.containsKey(_selectedAssigneeId)
-            ? _selectedAssigneeId
-            : null;
+      String? draftAssigneeId =
+      assignees.containsKey(_selectedAssigneeId)
+          ? _selectedAssigneeId
+          : null;
 
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return SafeArea(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  20,
-                  8,
-                  20,
-                  MediaQuery.of(context).viewInsets.bottom + 20,
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Bộ lọc công việc',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (sheetContext) {
+          return StatefulBuilder(
+            builder: (context, setModalState) {
+              return SafeArea(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    8,
+                    20,
+                    MediaQuery.of(context).viewInsets.bottom + 20,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Bộ lọc công việc',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
+                        const SizedBox(height: 20),
 
-                      DropdownButtonFormField<String?>(
-                        initialValue: draftType,
-                        decoration: const InputDecoration(
-                          labelText: 'Loại công việc',
-                          prefixIcon: Icon(Icons.folder_outlined),
-                          border: OutlineInputBorder(),
-                        ),
-                        items: const [
-                          DropdownMenuItem<String?>(
-                            value: null,
-                            child: Text('Tất cả'),
+                        DropdownButtonFormField<String?>(
+                          initialValue: draftType,
+                          decoration: const InputDecoration(
+                            labelText: 'Loại công việc',
+                            prefixIcon: Icon(Icons.folder_outlined),
+                            border: OutlineInputBorder(),
                           ),
-                          DropdownMenuItem<String?>(
-                            value: 'created',
-                            child: Text('Đã tạo'),
-                          ),
-                          DropdownMenuItem<String?>(
-                            value: 'assigned',
-                            child: Text('Được giao'),
-                          ),
-                          DropdownMenuItem<String?>(
-                            value: 'accepted',
-                            child: Text('Đã nhận'),
-                          ),
-                          DropdownMenuItem<String?>(
-                            value: 'shared',
-                            child: Text('Được chia sẻ'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          setModalState(() {
-                            draftType = value;
-                          });
-                        },
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      DropdownButtonFormField<String?>(
-                        initialValue: draftStatus,
-                        decoration: const InputDecoration(
-                          labelText: 'Trạng thái',
-                          prefixIcon: Icon(
-                            Icons.check_circle_outline,
-                          ),
-                          border: OutlineInputBorder(),
-                        ),
-                        items: const [
-                          DropdownMenuItem<String?>(
-                            value: null,
-                            child: Text('Tất cả trạng thái'),
-                          ),
-                          DropdownMenuItem<String?>(
-                            value: 'not_started',
-                            child: Text('Chưa thực hiện'),
-                          ),
-                          DropdownMenuItem<String?>(
-                            value: 'in_progress',
-                            child: Text('Đang thực hiện'),
-                          ),
-                          DropdownMenuItem<String?>(
-                            value: 'completed',
-                            child: Text('Đã hoàn thành'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          setModalState(() {
-                            draftStatus = value;
-                          });
-                        },
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      DropdownButtonFormField<String?>(
-                        initialValue: draftPriority,
-                        decoration: const InputDecoration(
-                          labelText: 'Mức độ ưu tiên',
-                          prefixIcon: Icon(Icons.flag_outlined),
-                          border: OutlineInputBorder(),
-                        ),
-                        items: const [
-                          DropdownMenuItem<String?>(
-                            value: null,
-                            child: Text(
-                              'Tất cả mức độ ưu tiên',
+                          items: const [
+                            DropdownMenuItem<String?>(
+                              value: null,
+                              child: Text('Tất cả'),
                             ),
-                          ),
-                          DropdownMenuItem<String?>(
-                            value: 'low',
-                            child: Text('Thấp'),
-                          ),
-                          DropdownMenuItem<String?>(
-                            value: 'medium',
-                            child: Text('Trung bình'),
-                          ),
-                          DropdownMenuItem<String?>(
-                            value: 'high',
-                            child: Text('Cao'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          setModalState(() {
-                            draftPriority = value;
-                          });
-                        },
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      DropdownButtonFormField<String?>(
-                        initialValue: draftAssigneeId,
-                        decoration: const InputDecoration(
-                          labelText: 'Người phụ trách',
-                          prefixIcon: Icon(Icons.person_outline),
-                          border: OutlineInputBorder(),
-                        ),
-                        items: [
-                          const DropdownMenuItem<String?>(
-                            value: null,
-                            child: Text(
-                              'Tất cả người phụ trách',
+                            DropdownMenuItem<String?>(
+                              value: 'created',
+                              child: Text('Đã tạo'),
                             ),
+                            DropdownMenuItem<String?>(
+                              value: 'assigned',
+                              child: Text('Được giao'),
+                            ),
+                            DropdownMenuItem<String?>(
+                              value: 'accepted',
+                              child: Text('Đã nhận'),
+                            ),
+                            DropdownMenuItem<String?>(
+                              value: 'shared',
+                              child: Text('Được chia sẻ'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            setModalState(() {
+                              draftType = value;
+                            });
+                          },
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        DropdownButtonFormField<String?>(
+                          initialValue: draftStatus,
+                          decoration: const InputDecoration(
+                            labelText: 'Trạng thái',
+                            prefixIcon: Icon(
+                              Icons.check_circle_outline,
+                            ),
+                            border: OutlineInputBorder(),
                           ),
-                          ...assignees.values.map(
-                            (assignee) => DropdownMenuItem<String?>(
-                              value: assignee.id,
+                          items: const [
+                            DropdownMenuItem<String?>(
+                              value: null,
+                              child: Text('Tất cả trạng thái'),
+                            ),
+                            DropdownMenuItem<String?>(
+                              value: 'not_started',
+                              child: Text('Chưa thực hiện'),
+                            ),
+                            DropdownMenuItem<String?>(
+                              value: 'in_progress',
+                              child: Text('Đang thực hiện'),
+                            ),
+                            DropdownMenuItem<String?>(
+                              value: 'completed',
+                              child: Text('Đã hoàn thành'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            setModalState(() {
+                              draftStatus = value;
+                            });
+                          },
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        DropdownButtonFormField<String?>(
+                          initialValue: draftPriority,
+                          decoration: const InputDecoration(
+                            labelText: 'Mức độ ưu tiên',
+                            prefixIcon: Icon(Icons.flag_outlined),
+                            border: OutlineInputBorder(),
+                          ),
+                          items: const [
+                            DropdownMenuItem<String?>(
+                              value: null,
                               child: Text(
-                                assignee.fullName.isEmpty
-                                    ? assignee.email
-                                    : assignee.fullName,
+                                'Tất cả mức độ ưu tiên',
                               ),
                             ),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          setModalState(() {
-                            draftAssigneeId = value;
-                          });
-                        },
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            setState(() {
-                              _selectedType = draftType;
-                              _selectedStatus = draftStatus;
-                              _selectedPriority = draftPriority;
-                              _selectedAssigneeId = draftAssigneeId;
-
-                              _loadTasks();
-                            });
-
-                            Navigator.pop(sheetContext);
-                          },
-                          icon: const Icon(Icons.check),
-                          label: const Text('Áp dụng bộ lọc'),
-                        ),
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton(
-                          onPressed: () {
+                            DropdownMenuItem<String?>(
+                              value: 'low',
+                              child: Text('Thấp'),
+                            ),
+                            DropdownMenuItem<String?>(
+                              value: 'medium',
+                              child: Text('Trung bình'),
+                            ),
+                            DropdownMenuItem<String?>(
+                              value: 'high',
+                              child: Text('Cao'),
+                            ),
+                          ],
+                          onChanged: (value) {
                             setModalState(() {
-                              draftType = null;
-                              draftStatus = null;
-                              draftPriority = null;
-                              draftAssigneeId = null;
+                              draftPriority = value;
                             });
                           },
-                          child: const Text('Xóa tất cả bộ lọc'),
                         ),
-                      ),
-                    ],
+
+                        const SizedBox(height: 16),
+
+                        DropdownButtonFormField<String?>(
+                          initialValue: draftAssigneeId,
+                          decoration: const InputDecoration(
+                            labelText: 'Người phụ trách',
+                            prefixIcon: Icon(Icons.person_outline),
+                            border: OutlineInputBorder(),
+                          ),
+                          items: [
+                            const DropdownMenuItem<String?>(
+                              value: null,
+                              child: Text(
+                                'Tất cả người phụ trách',
+                              ),
+                            ),
+                            ...assignees.values.map(
+                                  (assignee) =>
+                                  DropdownMenuItem<String?>(
+                                    value: assignee.id,
+                                    child: Text(
+                                      assignee.fullName.isEmpty
+                                          ? assignee.email
+                                          : assignee.fullName,
+                                    ),
+                                  ),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            setModalState(() {
+                              draftAssigneeId = value;
+                            });
+                          },
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              setState(() {
+                                _selectedType = draftType;
+                                _selectedStatus = draftStatus;
+                                _selectedPriority = draftPriority;
+                                _selectedAssigneeId =
+                                    draftAssigneeId;
+
+                                _loadTasks();
+                              });
+
+                              Navigator.pop(sheetContext);
+                            },
+                            icon: const Icon(Icons.check),
+                            label: const Text('Áp dụng bộ lọc'),
+                          ),
+                        ),
+
+                        const SizedBox(height: 8),
+
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: () {
+                              setModalState(() {
+                                draftType = null;
+                                draftStatus = null;
+                                draftPriority = null;
+                                draftAssigneeId = null;
+                              });
+                            },
+                            child: const Text(
+                              'Xóa tất cả bộ lọc',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            );
-          },
-        );
-      },
-    );
+              );
+            },
+          );
+        },
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Không thể tải dữ liệu bộ lọc: '
+                '${error.toString().replaceFirst('Exception: ', '')}',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _openSortSheet() async {
@@ -651,9 +714,17 @@ class _TaskListScreenState extends State<TaskListScreen> {
           ),
 
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: _isLoggingOut
+                ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+              ),
+            )
+                : const Icon(Icons.logout),
             tooltip: 'Đăng xuất',
-            onPressed: _confirmLogout,
+            onPressed: _isLoggingOut ? null : _confirmLogout,
           ),
         ],
       ),
@@ -781,12 +852,12 @@ class _TaskListScreenState extends State<TaskListScreen> {
                 }
 
                 final selectedAssigneeId =
-                    assignees.containsKey(_selectedAssigneeId)
-                        ? _selectedAssigneeId
-                        : null;
+                assignees.containsKey(_selectedAssigneeId)
+                    ? _selectedAssigneeId
+                    : null;
 
                 final keyword =
-                    _searchController.text.trim().toLowerCase();
+                _searchController.text.trim().toLowerCase();
 
                 final tasks = allTasks.where((task) {
                   final matchesName = task.title
@@ -817,62 +888,62 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
                 return tasks.isEmpty
                     ? RefreshIndicator(
-                        onRefresh: _reloadTasks,
-                        child: ListView(
-                          physics:
-                              const AlwaysScrollableScrollPhysics(),
-                          children: [
-                            const SizedBox(height: 100),
-                            const Icon(
-                              Icons.search_off,
-                              size: 64,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(height: 16),
-                            Center(
-                              child: Text(
-                                allTasks.isEmpty
-                                    ? 'Chưa có công việc nào.'
-                                    : 'Không tìm thấy công việc phù hợp.',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Center(
-                              child: Text(
-                                'Danh mục: ${_typeLabel(_selectedType)}',
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            const Center(
-                              child: Text(
-                                'Kéo xuống để tải lại.',
-                              ),
-                            ),
-                          ],
+                  onRefresh: _reloadTasks,
+                  child: ListView(
+                    physics:
+                    const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      const SizedBox(height: 100),
+                      const Icon(
+                        Icons.search_off,
+                        size: 64,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(height: 16),
+                      Center(
+                        child: Text(
+                          allTasks.isEmpty
+                              ? 'Chưa có công việc nào.'
+                              : 'Không tìm thấy công việc phù hợp.',
+                          style: const TextStyle(
+                            fontSize: 16,
+                          ),
                         ),
-                      )
+                      ),
+                      const SizedBox(height: 8),
+                      Center(
+                        child: Text(
+                          'Danh mục: ${_typeLabel(_selectedType)}',
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Center(
+                        child: Text(
+                          'Kéo xuống để tải lại.',
+                        ),
+                      ),
+                    ],
+                  ),
+                )
                     : RefreshIndicator(
-                        onRefresh: _reloadTasks,
-                        child: ListView.builder(
-                          physics:
-                              const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.all(16),
-                          itemCount: tasks.length,
-                          itemBuilder: (context, index) {
-                            final task = tasks[index];
+                  onRefresh: _reloadTasks,
+                  child: ListView.builder(
+                    physics:
+                    const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(16),
+                    itemCount: tasks.length,
+                    itemBuilder: (context, index) {
+                      final task = tasks[index];
 
-                            return TaskCard(
-                              task: task,
-                              onTap: () {
-                                _openTaskDetail(task);
-                              },
-                            );
-                          },
-                        ),
+                      return TaskCard(
+                        task: task,
+                        onTap: () {
+                          _openTaskDetail(task);
+                        },
                       );
+                    },
+                  ),
+                );
               },
             ),
           ),
